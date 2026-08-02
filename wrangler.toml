@@ -1,0 +1,9 @@
+name = "bulkbun"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist/client"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bulkbun-db"
+database_id = "f2b5207f-f98e-42e2-bd3b-c35feda750b0"
