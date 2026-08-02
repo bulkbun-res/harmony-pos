@@ -504,12 +504,12 @@ function SettingsPage() {
 
             <section className="space-y-2 rounded-2xl border border-border bg-card p-4">
               {state.items
-                .filter((i) => i.modifiers.length)
+                .filter((i) => (i.modifiers || []).length)
                 .map((i) => (
                   <div key={i.id} className="rounded-xl bg-secondary/40 p-3">
                     <p className="mb-2 text-sm font-extrabold">{i.name}</p>
                     <div className="flex flex-wrap gap-2">
-                      {i.modifiers.map((m) => (
+                      {(i.modifiers || []).map((m) => (
                         <span
                           key={m.id}
                           className="flex items-center gap-2 rounded-full bg-background px-3 py-1.5 text-xs font-bold"
@@ -519,7 +519,7 @@ function SettingsPage() {
                             className="text-destructive"
                             onClick={() =>
                               updateItem(i.id, {
-                                modifiers: i.modifiers.filter((x) => x.id !== m.id),
+                                modifiers: (i.modifiers || []).filter((x) => x.id !== m.id),
                               })
                             }
                           >

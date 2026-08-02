@@ -29,8 +29,8 @@ export function ItemTile({
       onClick={onClick}
       disabled={disabled && interactive}
       style={{
-        gridColumn: `span ${item.w}`,
-        gridRow: `span ${item.h}`,
+        gridColumn: `span ${item.w || 1}`,
+        gridRow: `span ${item.h || 1}`,
         backgroundImage: disabled
           ? undefined
           : `linear-gradient(150deg, color-mix(in oklab, ${color} 88%, transparent), color-mix(in oklab, ${color} 45%, var(--card)))`,

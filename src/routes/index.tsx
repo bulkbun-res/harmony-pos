@@ -84,7 +84,7 @@ function PosScreen() {
     const key = mods.map((m) => m.id).sort().join("|");
     setLines((prev) => {
       const existing = prev.find(
-        (l) => l.itemId === item.id && l.modifiers.map((m) => m.id).sort().join("|") === key,
+        (l) => l.itemId === item.id && (l.modifiers || []).map((m) => m.id).sort().join("|") === key,
       );
       if (existing) {
         return prev.map((l) =>
@@ -106,7 +106,7 @@ function PosScreen() {
   };
 
   const onTileClick = (item: Item) => {
-    if (item.modifiers.length) setModifierItem(item);
+    if ((item.modifiers || []).length) setModifierItem(item);
     else addLine(item);
   };
 
@@ -261,7 +261,7 @@ function PosScreen() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{l.name}</p>
-                    {l.modifiers.map((m) => (
+                    {(l.modifiers || []).map((m) => (
                       <p key={m.id} className="text-[11px] text-muted-foreground">
                         + {m.name} ({EGP(m.price)})
                       </p>

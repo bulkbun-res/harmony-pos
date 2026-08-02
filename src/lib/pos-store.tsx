@@ -872,7 +872,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "موز فريش مضروب باللبن والعسل الطبيعي بدون سكر",
-      image: "local:drinks-1"
+      image: "local:drinks-banana"
     },
     {
       id: "dc-mango",
@@ -887,7 +887,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "عصير مانجو طبيعي 100% بارد ومنعش",
-      image: "local:drinks-1"
+      image: "local:drinks-mango"
     },
     {
       id: "dc-guava",
@@ -902,12 +902,12 @@ export const defaultState = (): PosState => {
       order: 2,
       modifiers: [],
       desc: "عصير جوافة طبيعي منعش وخفيف",
-      image: "local:drinks-1"
+      image: "local:drinks-guava"
     },
     {
       id: "dc-strawberry",
       groupId: "drinks-cold",
-      name: "عصير فراولة فريش",
+      name: "عصير فراولة",
       price: 70,
       available: true,
       w: 1,
@@ -917,7 +917,7 @@ export const defaultState = (): PosState => {
       order: 3,
       modifiers: [],
       desc: "عصير فراولة طبيعي مثلج وطازج",
-      image: "local:drinks-1"
+      image: "local:drinks-strawberry"
     },
     {
       id: "dc-orange",
@@ -1096,7 +1096,7 @@ export const defaultState = (): PosState => {
     ingredients,
     stockMoves: [],
     shiftStartedAt: Date.now(),
-    version: 5,
+    version: 7,
   };
 };
 
@@ -1198,10 +1198,10 @@ export function PosProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<PosState>;
-        // Migration reset: if version is older than 5 or contains old groups, force new default menu
+        // Migration reset: if version is older than 7 or contains old groups, force new default menu
         if (
           !parsed.version ||
-          parsed.version < 5 ||
+          parsed.version < 7 ||
           (parsed.groups && parsed.groups.some((g) => g.id === "sandwiches" || g.id === "meals"))
         ) {
           console.log("Old version or English version detected, resetting to new Arabic menu...");
@@ -1238,6 +1238,11 @@ export function PosProvider({ children }: { children: ReactNode }) {
                   const defaultItem = s.items.find((i) => i.id === dbItem.id);
                   return {
                     ...dbItem,
+                    w: dbItem.w ?? defaultItem?.w ?? 1,
+                    h: dbItem.h ?? defaultItem?.h ?? 1,
+                    shape: dbItem.shape ?? defaultItem?.shape ?? "square",
+                    color: dbItem.color ?? defaultItem?.color ?? "leaf",
+                    modifiers: dbItem.modifiers ?? defaultItem?.modifiers ?? [],
                     recipe: dbItem.recipe ?? defaultItem?.recipe ?? [],
                   };
                 }),

@@ -24,6 +24,10 @@ import d0 from "@/assets/menu/drinks-0.jpg";
 import d1 from "@/assets/menu/drinks-1.jpg";
 import d2 from "@/assets/menu/drinks-2.jpg";
 import d3 from "@/assets/menu/drinks-3.jpg";
+import dbBanana from "@/assets/menu/drinks-banana.jpg";
+import dbMango from "@/assets/menu/drinks-mango.jpg";
+import dbGuava from "@/assets/menu/drinks-guava.jpg";
+import dbStrawberry from "@/assets/menu/drinks-strawberry.jpg";
 
 /** مكتبة الصور المحلية: المفتاح يتخزن في الصنف بصيغة local:key */
 export const LOCAL_IMAGES: { key: string; label: string; src: string }[] = [
@@ -46,6 +50,10 @@ export const LOCAL_IMAGES: { key: string; label: string; src: string }[] = [
   { key: "drinks-1", label: "عصير برتقال", src: d1 },
   { key: "drinks-2", label: "بيبسي", src: d2 },
   { key: "drinks-3", label: "لاتيه بارد", src: d3 },
+  { key: "drinks-banana", label: "موز باللبن", src: dbBanana },
+  { key: "drinks-mango", label: "عصير مانجو", src: dbMango },
+  { key: "drinks-guava", label: "عصير جوافة", src: dbGuava },
+  { key: "drinks-strawberry", label: "عصير فراولة", src: dbStrawberry },
   { key: "generic-sandwich", label: "ساندويتش (عام)", src: imgSandwich },
   { key: "generic-meal", label: "وجبة (عام)", src: imgMeal },
   { key: "generic-salad", label: "سلطة (عام)", src: imgSalad },
