@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+
 
 import { PosHeader } from "@/components/pos/PosHeader";
 import { LOCAL_IMAGES, resolveItemImage } from "@/lib/menu-images";
@@ -42,6 +43,32 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
+async function uploadToImgBB(file: File): Promise<string> {
+  const apiKey = "78fd75fc68463c9ed79db671b8252f9f";
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("فشل رفع الصورة إلى ImgBB");
+  }
+
+  const payload = (await res.json()) as {
+    success: boolean;
+    data?: { url?: string };
+    error?: { message?: string };
+  };
+  if (!payload.success || !payload.data?.url) {
+    throw new Error(payload.error?.message ?? "حدث خطأ غير معروف أثناء رفع الصورة");
+  }
+
+  return payload.data.url;
+}
+
 function SettingsPage() {
   const { state, addGroup, updateGroup, removeGroup, addItem, updateItem, removeItem, update } =
     usePos();
@@ -54,6 +81,8 @@ function SettingsPage() {
   const [iPrice, setIPrice] = useState("");
   const [iGroup, setIGroup] = useState(groups[0]?.id ?? "");
   const [iColor, setIColor] = useState<TileColor>("leaf");
+  const [iImage, setIImage] = useState("");
+
 
   const [modName, setModName] = useState("");
   const [modPrice, setModPrice] = useState("");
@@ -89,7 +118,7 @@ function SettingsPage() {
           <TabsContent value="items" className="space-y-4 pt-4">
             <section className="rounded-2xl border border-border bg-card p-4">
               <h2 className="mb-3 text-base font-extrabold">إضافة صنف جديد</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1.5">
                   <Label>اسم الصنف</Label>
                   <Input value={iName} onChange={(e) => setIName(e.target.value)} />
@@ -121,6 +150,58 @@ function SettingsPage() {
                   <Label>اللون</Label>
                   <ColorPicker value={iColor} onChange={setIColor} />
                 </div>
+                <div className="space-y-1.5">
+                  <Label>صورة الصنف</Label>
+                  <div className="flex items-center gap-2">
+                    {iImage ? (
+                      <img
+                        src={iImage.startsWith("local:") ? resolveItemImage({ id: "", groupId: iGroup, image: iImage }) : iImage}
+                        alt="صورة الصنف الجديد"
+                        className="h-9 w-12 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="h-9 w-12 rounded bg-secondary flex items-center justify-center text-[10px] text-muted-foreground">بلا صورة</div>
+                    )}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="new-item-image-file"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const toastId = toast.loading("جارٍ رفع الصورة...");
+                        try {
+                          const url = await uploadToImgBB(file);
+                          setIImage(url);
+                          toast.success("تم رفع الصورة بنجاح", { id: toastId });
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "فشل الرفع", { id: toastId });
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => document.getElementById("new-item-image-file")?.click()}
+                      className="text-xs h-9 font-bold"
+                    >
+                      <Upload className="h-3.5 w-3.5 mr-1" /> رفع
+                    </Button>
+                    {iImage && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIImage("")}
+                        className="text-xs h-9 text-destructive font-bold px-2"
+                      >
+                        حذف
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
               <Button
                 className="mt-4 font-extrabold"
@@ -138,10 +219,12 @@ function SettingsPage() {
                     h: 1,
                     shape: "square",
                     color: iColor,
+                    image: iImage || undefined,
                     modifiers: [],
                   });
                   setIName("");
                   setIPrice("");
+                  setIImage("");
                   toast.success("تمت إضافة الصنف");
                 }}
               >
@@ -188,22 +271,60 @@ function SettingsPage() {
                               value={
                                 item.image?.startsWith("local:")
                                   ? item.image.slice(6)
+                                  : item.image?.startsWith("http")
+                                  ? "custom"
                                   : ""
                               }
-                              onChange={(e) =>
-                                updateItem(item.id, {
-                                  image: e.target.value ? `local:${e.target.value}` : "",
-                                })
-                              }
-                              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                              onChange={(e) => {
+                                if (e.target.value === "custom") {
+                                  // do nothing, let them upload or keep existing URL
+                                } else {
+                                  updateItem(item.id, {
+                                    image: e.target.value ? `local:${e.target.value}` : "",
+                                  });
+                                }
+                              }}
+                              className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs"
                             >
                               <option value="">صورة تلقائية من الأصول</option>
+                              {item.image?.startsWith("http") && (
+                                <option value="custom">صورة مخصصة مرفوعة</option>
+                              )}
                               {LOCAL_IMAGES.map((img) => (
                                 <option key={img.key} value={img.key}>
                                   {img.label}
                                 </option>
                               ))}
                             </select>
+                            
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              id={`upload-item-file-${item.id}`}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const toastId = toast.loading("جارٍ رفع الصورة...");
+                                try {
+                                  const url = await uploadToImgBB(file);
+                                  updateItem(item.id, { image: url });
+                                  toast.success("تم رفع الصورة بنجاح", { id: toastId });
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : "فشل الرفع", { id: toastId });
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => document.getElementById(`upload-item-file-${item.id}`)?.click()}
+                              className="h-8 w-8 p-0 shrink-0"
+                              title="رفع صورة مخصصة"
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
                           </div>
 
                         </div>

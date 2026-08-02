@@ -60,7 +60,7 @@ export const groupFallbackImage = (groupId: string) => {
   return imgSandwich;
 };
 
-/** يرجّع صورة الصنف من الكودبيس دايمًا (local:key أو حسب معرّف الصنف أو صورة المجموعة) */
+/** يرجّع صورة الصنف من الكودبيس دايمًا (local:key أو رابط مباشر أو صورة المجموعة) */
 export const resolveItemImage = (item: {
   id: string;
   groupId: string;
@@ -68,9 +68,13 @@ export const resolveItemImage = (item: {
 }): string => {
   const raw = item.image?.trim();
   if (raw) {
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw;
+    }
     const key = raw.startsWith("local:") ? raw.slice(6) : raw;
     const hit = BY_KEY.get(key);
     if (hit) return hit;
   }
   return BY_KEY.get(item.id) ?? groupFallbackImage(item.groupId);
 };
+
