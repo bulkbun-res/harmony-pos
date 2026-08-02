@@ -72,7 +72,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-honey-mustard",
       groupId: "sandwiches-large",
-      name: "Honey Mustard Chicken",
+      name: "فراخ هاني ماسترد",
       price: 170,
       available: true,
       w: 2,
@@ -87,7 +87,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-tandoori",
       groupId: "sandwiches-large",
-      name: "Tandoori Chicken",
+      name: "فراخ تندوري",
       price: 165,
       available: true,
       w: 1,
@@ -102,7 +102,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-fajita",
       groupId: "sandwiches-large",
-      name: "Chicken Fajita",
+      name: "فاهيتا فراخ",
       price: 165,
       available: true,
       w: 1,
@@ -117,7 +117,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-roast-beef",
       groupId: "sandwiches-large",
-      name: "Roast Beef",
+      name: "روست بيف",
       price: 190,
       available: true,
       w: 2,
@@ -132,7 +132,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-hotdog",
       groupId: "sandwiches-large",
-      name: "Hot Dog",
+      name: "هوت دوج",
       price: 150,
       available: true,
       w: 1,
@@ -147,7 +147,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-salami",
       groupId: "sandwiches-large",
-      name: "Salami",
+      name: "سلامي",
       price: 140,
       available: true,
       w: 1,
@@ -162,7 +162,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-classic-tuna",
       groupId: "sandwiches-large",
-      name: "Classic Tuna",
+      name: "تونة كلاسيك",
       price: 120,
       available: true,
       w: 1,
@@ -177,7 +177,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-bulk-tuna",
       groupId: "sandwiches-large",
-      name: "Bulk Bun Tuna",
+      name: "تونة بولك بن",
       price: 150,
       available: true,
       w: 1,
@@ -192,7 +192,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-tuna-salad",
       groupId: "sandwiches-large",
-      name: "Tuna Salad Sandwich",
+      name: "سندوتش سلطة تونة",
       price: 140,
       available: true,
       w: 1,
@@ -207,7 +207,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-salmon",
       groupId: "sandwiches-large",
-      name: "Salmon Sandwich",
+      name: "سلمون مدخن",
       price: 220,
       available: true,
       w: 2,
@@ -222,7 +222,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-mashed-egg",
       groupId: "sandwiches-large",
-      name: "Mashed Egg",
+      name: "بيض مهروس",
       price: 60,
       available: true,
       w: 1,
@@ -237,7 +237,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-pastrami-egg",
       groupId: "sandwiches-large",
-      name: "Pastrami Egg",
+      name: "بيض بالبسطرمة",
       price: 115,
       available: true,
       w: 1,
@@ -252,7 +252,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-romi-cheese",
       groupId: "sandwiches-large",
-      name: "Roumy Cheese",
+      name: "جبنة رومي",
       price: 50,
       available: true,
       w: 1,
@@ -267,7 +267,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-flamank",
       groupId: "sandwiches-large",
-      name: "Flamank Cheese",
+      name: "جبنة فلمنك",
       price: 80,
       available: true,
       w: 1,
@@ -282,7 +282,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-turkish",
       groupId: "sandwiches-large",
-      name: "Turkish Cheese",
+      name: "جبنة تركي",
       price: 80,
       available: true,
       w: 1,
@@ -297,7 +297,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-feta",
       groupId: "sandwiches-large",
-      name: "Feta Cheese",
+      name: "جبنة فيتا",
       price: 50,
       available: true,
       w: 1,
@@ -312,7 +312,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-cottage",
       groupId: "sandwiches-large",
-      name: "Cottage Cheese",
+      name: "جبنة قريش",
       price: 50,
       available: true,
       w: 1,
@@ -327,7 +327,7 @@ export const defaultState = (): PosState => {
     {
       id: "sl-healthy-potato",
       groupId: "sandwiches-large",
-      name: "Healthy Potato",
+      name: "بطاطس صحية",
       price: 50,
       available: true,
       w: 1,
@@ -344,7 +344,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-honey-mustard",
       groupId: "sandwiches-mini",
-      name: "Honey Mustard Chicken (Mini)",
+      name: "ميني هاني ماسترد",
       price: 85,
       available: true,
       w: 2,
@@ -359,7 +359,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-tandoori",
       groupId: "sandwiches-mini",
-      name: "Tandoori Chicken (Mini)",
+      name: "ميني تندوري",
       price: 85,
       available: true,
       w: 1,
@@ -374,7 +374,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-fajita",
       groupId: "sandwiches-mini",
-      name: "Chicken Fajita (Mini)",
+      name: "ميني فاهيتا",
       price: 85,
       available: true,
       w: 1,
@@ -389,7 +389,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-roast-beef",
       groupId: "sandwiches-mini",
-      name: "Roast Beef (Mini)",
+      name: "ميني روست بيف",
       price: 95,
       available: true,
       w: 2,
@@ -404,7 +404,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-hotdog",
       groupId: "sandwiches-mini",
-      name: "Hot Dog (Mini)",
+      name: "ميني هوت دوج",
       price: 75,
       available: true,
       w: 1,
@@ -419,7 +419,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-salami",
       groupId: "sandwiches-mini",
-      name: "Salami (Mini)",
+      name: "ميني سلامي",
       price: 70,
       available: true,
       w: 1,
@@ -434,7 +434,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-classic-tuna",
       groupId: "sandwiches-mini",
-      name: "Classic Tuna (Mini)",
+      name: "ميني تونة كلاسيك",
       price: 60,
       available: true,
       w: 1,
@@ -449,7 +449,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-bulk-tuna",
       groupId: "sandwiches-mini",
-      name: "Bulk Bun Tuna (Mini)",
+      name: "ميني تونة بولك",
       price: 75,
       available: true,
       w: 1,
@@ -464,7 +464,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-tuna-salad",
       groupId: "sandwiches-mini",
-      name: "Tuna Salad Sandwich (Mini)",
+      name: "ميني سلطة تونة",
       price: 70,
       available: true,
       w: 1,
@@ -479,7 +479,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-salmon",
       groupId: "sandwiches-mini",
-      name: "Salmon Sandwich (Mini)",
+      name: "ميني سلمون مدخن",
       price: 110,
       available: true,
       w: 2,
@@ -494,7 +494,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-mashed-egg",
       groupId: "sandwiches-mini",
-      name: "Mashed Egg (Mini)",
+      name: "ميني بيض مهروس",
       price: 30,
       available: true,
       w: 1,
@@ -509,7 +509,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-pastrami-egg",
       groupId: "sandwiches-mini",
-      name: "Pastrami Egg (Mini)",
+      name: "ميني بيض بسطرمة",
       price: 60,
       available: true,
       w: 1,
@@ -524,7 +524,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-romi-cheese",
       groupId: "sandwiches-mini",
-      name: "Roumy Cheese (Mini)",
+      name: "ميني جبنة رومي",
       price: 25,
       available: true,
       w: 1,
@@ -539,7 +539,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-flamank",
       groupId: "sandwiches-mini",
-      name: "Flamank Cheese (Mini)",
+      name: "ميني جبنة فلمنك",
       price: 40,
       available: true,
       w: 1,
@@ -554,7 +554,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-turkish",
       groupId: "sandwiches-mini",
-      name: "Turkish Cheese (Mini)",
+      name: "ميني جبنة تركي",
       price: 40,
       available: true,
       w: 1,
@@ -569,7 +569,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-feta",
       groupId: "sandwiches-mini",
-      name: "Feta Cheese (Mini)",
+      name: "ميني جبنة فيتا",
       price: 25,
       available: true,
       w: 1,
@@ -584,7 +584,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-cottage",
       groupId: "sandwiches-mini",
-      name: "Cottage Cheese (Mini)",
+      name: "ميني جبنة قريش",
       price: 25,
       available: true,
       w: 1,
@@ -599,7 +599,7 @@ export const defaultState = (): PosState => {
     {
       id: "sm-healthy-potato",
       groupId: "sandwiches-mini",
-      name: "Healthy Potato (Mini)",
+      name: "ميني بطاطس صحية",
       price: 25,
       available: true,
       w: 1,
@@ -616,7 +616,7 @@ export const defaultState = (): PosState => {
     {
       id: "pa-chicken",
       groupId: "pasta",
-      name: "Chicken Pasta",
+      name: "مكرونة فراخ",
       price: 120,
       available: true,
       w: 2,
@@ -631,7 +631,7 @@ export const defaultState = (): PosState => {
     {
       id: "pa-beef",
       groupId: "pasta",
-      name: "Minced Beef Pasta",
+      name: "مكرونة لحمة مفرومة",
       price: 125,
       available: true,
       w: 1,
@@ -646,7 +646,7 @@ export const defaultState = (): PosState => {
     {
       id: "pa-sausage",
       groupId: "pasta",
-      name: "Sausage Pasta",
+      name: "مكرونة سجق",
       price: 100,
       available: true,
       w: 1,
@@ -663,7 +663,7 @@ export const defaultState = (): PosState => {
     {
       id: "sa-tuna",
       groupId: "salads",
-      name: "Tuna Salad",
+      name: "سلطة تونة صحية",
       price: 135,
       available: true,
       w: 2,
@@ -678,7 +678,7 @@ export const defaultState = (): PosState => {
     {
       id: "sa-caesar",
       groupId: "salads",
-      name: "Caesar Salad",
+      name: "سلطة سيزر بالدجاج",
       price: 150,
       available: true,
       w: 2,
@@ -785,7 +785,7 @@ export const defaultState = (): PosState => {
     {
       id: "dh-latte",
       groupId: "drinks-hot",
-      name: "لاتيه دافئ",
+      name: "لاتيه",
       price: 90,
       available: true,
       w: 1,
@@ -800,7 +800,7 @@ export const defaultState = (): PosState => {
     {
       id: "dh-flatwhite",
       groupId: "drinks-hot",
-      name: "فلات وايت دافئ",
+      name: "فلات وايت",
       price: 90,
       available: true,
       w: 1,
@@ -815,7 +815,7 @@ export const defaultState = (): PosState => {
     {
       id: "dh-macchiato",
       groupId: "drinks-hot",
-      name: "ميكاتو دافئ",
+      name: "ميكاتو",
       price: 75,
       available: true,
       w: 1,
@@ -830,7 +830,7 @@ export const defaultState = (): PosState => {
     {
       id: "dh-herbs",
       groupId: "drinks-hot",
-      name: "أعشاب طبيعية دافئة",
+      name: "أعشاب طبيعية",
       price: 35,
       available: true,
       w: 1,
@@ -845,7 +845,7 @@ export const defaultState = (): PosState => {
     {
       id: "dh-celery",
       groupId: "drinks-hot",
-      name: "كرفس وبقدونس دافئ",
+      name: "كرفس وبقدونس",
       price: 40,
       available: true,
       w: 1,
@@ -862,7 +862,7 @@ export const defaultState = (): PosState => {
     {
       id: "dc-banana",
       groupId: "drinks-cold",
-      name: "عصير موز باللبن",
+      name: "موز باللبن",
       price: 60,
       available: true,
       w: 1,
@@ -877,7 +877,7 @@ export const defaultState = (): PosState => {
     {
       id: "dc-mango",
       groupId: "drinks-cold",
-      name: "عصير مانجو فريش",
+      name: "عصير مانجو",
       price: 70,
       available: true,
       w: 1,
@@ -892,7 +892,7 @@ export const defaultState = (): PosState => {
     {
       id: "dc-guava",
       groupId: "drinks-cold",
-      name: "عصير جوافة فريش",
+      name: "عصير جوافة",
       price: 70,
       available: true,
       w: 1,
@@ -1094,6 +1094,7 @@ export const defaultState = (): PosState => {
     ingredients,
     stockMoves: [],
     shiftStartedAt: Date.now(),
+    version: 3,
   };
 };
 
@@ -1195,9 +1196,13 @@ export function PosProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<PosState>;
-        // Migration reset: if it contains the old groups, force new default menu
-        if (parsed.groups && parsed.groups.some((g) => g.id === "sandwiches" || g.id === "meals")) {
-          console.log("Old menu version detected, resetting to new default menu...");
+        // Migration reset: if version is older than 3 or contains old groups, force new default menu
+        if (
+          !parsed.version ||
+          parsed.version < 3 ||
+          (parsed.groups && parsed.groups.some((g) => g.id === "sandwiches" || g.id === "meals"))
+        ) {
+          console.log("Old version or English version detected, resetting to new Arabic menu...");
           localStorage.removeItem(STORAGE_KEY);
           // Keep the default state initialized from defaultState()
         } else {

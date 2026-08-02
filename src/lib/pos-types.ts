@@ -132,6 +132,7 @@ export interface PosState {
   stockMoves: StockMove[];
   /** بداية الوردية الحالية */
   shiftStartedAt: number;
+  version?: number;
 }
 
 export const STOCK_REASONS: Record<StockMoveReason, string> = {

@@ -54,10 +54,10 @@ export function ItemTile({
 
       <span
         className={cn(
-          "line-clamp-2 w-full shrink-0 px-1 font-bold leading-tight text-primary-foreground drop-shadow-sm",
+          "line-clamp-2 w-full shrink-0 px-1 font-black leading-none text-primary-foreground drop-shadow-sm break-words hyphens-auto",
           item.w > 1 || item.h > 1
-            ? "text-[clamp(0.8rem,1.4vw,1.15rem)]"
-            : "text-[clamp(0.65rem,1vw,0.95rem)]",
+            ? "text-[clamp(0.75rem,1.2vw,1rem)]"
+            : "text-[clamp(0.58rem,0.85vw,0.78rem)]",
         )}
       >
         {item.name}
