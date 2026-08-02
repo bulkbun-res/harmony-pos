@@ -673,7 +673,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "100 جرام تونة قطع مع طماطم وخيار وبصل وزيت زيتون | 420 سعرة | 35 جرام بروتين",
-      image: "local:salads-0"
+      image: "local:salads-2"
     },
     {
       id: "sa-caesar",
@@ -1032,6 +1032,8 @@ export const defaultState = (): PosState => {
       item.modifiers = breadModifiers;
     } else if (item.groupId === "pasta") {
       item.modifiers = pastaModifiers;
+    } else if (item.groupId === "drinks-hot") {
+      item.image = "local:generic-hot-drink";
     }
   }
 
@@ -1094,7 +1096,7 @@ export const defaultState = (): PosState => {
     ingredients,
     stockMoves: [],
     shiftStartedAt: Date.now(),
-    version: 3,
+    version: 5,
   };
 };
 
@@ -1196,10 +1198,10 @@ export function PosProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<PosState>;
-        // Migration reset: if version is older than 3 or contains old groups, force new default menu
+        // Migration reset: if version is older than 5 or contains old groups, force new default menu
         if (
           !parsed.version ||
-          parsed.version < 3 ||
+          parsed.version < 5 ||
           (parsed.groups && parsed.groups.some((g) => g.id === "sandwiches" || g.id === "meals"))
         ) {
           console.log("Old version or English version detected, resetting to new Arabic menu...");
@@ -1221,6 +1223,30 @@ export function PosProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     setReady(true);
+
+    // Fetch the latest menu snapshot from Cloudflare D1 database to sync sizes, sorting, and pricing across devices
+    import("@/lib/online.functions").then(({ getPublicMenu }) => {
+      getPublicMenu()
+        .then((res) => {
+          if (res?.menu?.items?.length) {
+            setState((s) => {
+              // Only overwrite groups and items from the database to preserve local orders and inventory moves
+              return {
+                ...s,
+                groups: res.menu.groups,
+                items: res.menu.items.map((dbItem) => {
+                  const defaultItem = s.items.find((i) => i.id === dbItem.id);
+                  return {
+                    ...dbItem,
+                    recipe: dbItem.recipe ?? defaultItem?.recipe ?? [],
+                  };
+                }),
+              };
+            });
+          }
+        })
+        .catch(console.error);
+    });
   }, []);
 
   useEffect(() => {

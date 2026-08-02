@@ -3,6 +3,7 @@ import imgSandwich from "@/assets/menu-sandwich.jpg";
 import imgMeal from "@/assets/menu-meal.jpg";
 import imgSalad from "@/assets/menu-salad.jpg";
 import imgDrink from "@/assets/menu-drink.jpg";
+import imgDrinkHot from "@/assets/menu-drink-hot.jpg";
 
 import s0 from "@/assets/menu/sandwiches-0.jpg";
 import s1 from "@/assets/menu/sandwiches-1.jpg";
@@ -49,6 +50,7 @@ export const LOCAL_IMAGES: { key: string; label: string; src: string }[] = [
   { key: "generic-meal", label: "وجبة (عام)", src: imgMeal },
   { key: "generic-salad", label: "سلطة (عام)", src: imgSalad },
   { key: "generic-drink", label: "مشروب (عام)", src: imgDrink },
+  { key: "generic-hot-drink", label: "مشروب ساخن", src: imgDrinkHot },
 ];
 
 const BY_KEY = new Map(LOCAL_IMAGES.map((x) => [x.key, x.src]));
