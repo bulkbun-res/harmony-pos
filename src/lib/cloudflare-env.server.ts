@@ -1,23 +1,26 @@
-// Cloudflare env store — يُحفظ قبل كل request في server.ts
-// آمن لأن Cloudflare Workers تعالج request واحد في الوقت بنفس الـ isolate
+const GLOBAL_ENV_KEY = Symbol.for("bulkbun:cloudflare_env");
 
-let _env: Record<string, unknown> | null = null;
+const globalObj = globalThis as typeof globalThis & {
+  [GLOBAL_ENV_KEY]?: Record<string, unknown>;
+};
 
 /** يُستدعى من server.ts في بداية كل fetch request */
 export function setCloudflareEnv(env: unknown): void {
-  _env = env as Record<string, unknown>;
+  globalObj[GLOBAL_ENV_KEY] = env as Record<string, unknown>;
 }
 
 /** يُرجع D1 database binding */
 export function getDB(): D1Database {
-  if (!_env) {
+  const env = globalObj[GLOBAL_ENV_KEY];
+  if (!env) {
     throw new Error(
       "Cloudflare env not initialized — setCloudflareEnv() must be called first from server.ts",
     );
   }
-  const db = _env["DB"] as D1Database | undefined;
+  const db = env["DB"] as D1Database | undefined;
   if (!db) {
     throw new Error("D1 binding 'DB' not found. Verify [[d1_databases]] in wrangler.toml.");
   }
   return db;
 }
+

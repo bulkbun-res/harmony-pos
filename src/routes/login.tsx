@@ -129,13 +129,6 @@ function LoginPage() {
           </Button>
         </form>
 
-        <div className="text-center pt-2">
-          <p className="text-[10px] text-muted-foreground">
-            تنويه: الحساب الافتراضي الأول للمدير هو{" "}
-            <code className="bg-white/5 px-1.5 py-0.5 rounded text-primary">admin</code> بكلمة مرور{" "}
-            <code className="bg-white/5 px-1.5 py-0.5 rounded text-primary">admin123</code>
-          </p>
-        </div>
       </div>
     </div>
   );
