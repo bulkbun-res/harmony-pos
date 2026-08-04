@@ -52,6 +52,7 @@ import {
   deleteEmployeeFn,
   deleteExpenseFn,
   getAdminMetricsFn,
+  getDetailedReportsFn,
   getAttendanceFn,
   getSalaryTransactionsFn,
   listEmployeesFn,
@@ -181,6 +182,7 @@ function AdminDashboard() {
   const fetchUsers = useServerFn(listUsersFn);
   const addUser = useServerFn(createUserFn);
   const toggleUser = useServerFn(toggleUserFn);
+  const fetchReports = useServerFn(getDetailedReportsFn);
 
   // الحالات المحلية
   const [isMounted, setIsMounted] = useState(false);
@@ -195,6 +197,9 @@ function AdminDashboard() {
   const [salaryTxs, setSalaryTxs] = useState<SalaryTransaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [usersList, setUsersList] = useState<UserAccount[]>([]);
+  const [reports, setReports] = useState<any>(null);
+  const [reportDays, setReportDays] = useState(30);
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // حضور اليوم
@@ -233,6 +238,24 @@ function AdminDashboard() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    try {
+      const r = await fetchReports({ data: { days: reportDays } });
+      setReports(r);
+    } catch (err: unknown) {
+      console.error("Failed to load reports:", err);
+      const error = err as Error;
+      toast.error(error.message || "تعذر تحميل التقارير");
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [fetchReports, reportDays]);
+
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
 
   // تحميل الحضور عند تغيير التاريخ
   useEffect(() => {
@@ -455,6 +478,12 @@ function AdminDashboard() {
                 المبيعات والتقارير
               </TabsTrigger>
               <TabsTrigger
+                value="reports"
+                className="h-10 px-5 font-bold rounded-xl data-[state=active]:bg-primary"
+              >
+                التقارير التفصيلية 📊
+              </TabsTrigger>
+              <TabsTrigger
                 value="hr"
                 className="h-10 px-5 font-bold rounded-xl data-[state=active]:bg-primary"
               >
@@ -645,6 +674,252 @@ function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            {/* 1.5. DETAILED REPORTS TAB */}
+            <TabsContent value="reports" className="space-y-6 mt-4">
+              {/* شريط الفلترة والأدوات */}
+              <div className="flex flex-wrap justify-between items-center gap-4 bg-[#0b1411]/60 p-4 border border-white/5 rounded-2xl backdrop-blur">
+                <div>
+                  <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
+                    <BarChart2 className="h-4.5 w-4.5 text-primary" /> تقارير وتحليلات الأداء المتقدمة
+                  </h2>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">تحليلات الأرباح والخسائر، تفاصيل المبيعات، ومعدلات الهلاك التشغيلي</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-muted-foreground">الفترة الزمنية:</span>
+                  <Select
+                    value={String(reportDays)}
+                    onValueChange={(v) => setReportDays(Number(v))}
+                  >
+                    <SelectTrigger className="bg-[#050908] border-white/5 rounded-xl h-10 w-44 text-xs font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">آخر 7 أيام (أسبوعي)</SelectItem>
+                      <SelectItem value="30">آخر 30 يوم (شهري)</SelectItem>
+                      <SelectItem value="90">آخر 90 يوم (ربع سنوي)</SelectItem>
+                      <SelectItem value="365">آخر 365 يوم (سنوي)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {reportsLoading ? (
+                <div className="flex h-64 items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <div className="h-8 w-8 border-3 border-primary border-t-transparent animate-spin rounded-full mx-auto"></div>
+                    <p className="text-xs text-muted-foreground">جاري إنشاء وتحليل التقارير...</p>
+                  </div>
+                </div>
+              ) : reports ? (
+                <>
+                  {/* قائمة الربح والخسارة (P&L Ledger Cards) */}
+                  <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/40 p-4 backdrop-blur-md shadow flex flex-col justify-between">
+                      <p className="text-[10px] font-bold text-muted-foreground">إجمالي المبيعات (الإيرادات)</p>
+                      <p className="text-lg font-black text-emerald-500 mt-2">{EGP(reports.financialSummary.revenue)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">المبيعات المدفوعة للفترة</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/40 p-4 backdrop-blur-md shadow flex flex-col justify-between">
+                      <p className="text-[10px] font-bold text-muted-foreground">تكلفة الخامات (COGS 35%)</p>
+                      <p className="text-lg font-black text-rose-400 mt-2">-{EGP(reports.financialSummary.cogs)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">تكلفة تحضير الطعام المقدرة</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/40 p-4 backdrop-blur-md shadow flex flex-col justify-between">
+                      <p className="text-[10px] font-bold text-muted-foreground">الأجور ورواتب العمال</p>
+                      <p className="text-lg font-black text-blue-400 mt-2">-{EGP(reports.financialSummary.salaries)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">الرواتب، السلف والمكافآت</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/40 p-4 backdrop-blur-md shadow flex flex-col justify-between">
+                      <p className="text-[10px] font-bold text-muted-foreground">المصاريف التشغيلية (OpEx)</p>
+                      <p className="text-lg font-black text-amber-500 mt-2">-{EGP(reports.financialSummary.operational)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">إيجارات، مرافق، صيانة ونثرية</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-primary/10 border-primary/25 p-4 backdrop-blur-md shadow flex flex-col justify-between col-span-2 md:col-span-1">
+                      <p className="text-[10px] font-bold text-primary">صافي الأرباح التشغيلية</p>
+                      <p className="text-xl font-black text-primary mt-2">{EGP(reports.financialSummary.netProfit)}</p>
+                      <p className="text-[9px] text-primary/75 mt-1">
+                        هامش الربح: {reports.financialSummary.revenue > 0 
+                          ? ((reports.financialSummary.netProfit / reports.financialSummary.revenue) * 100).toFixed(1) 
+                          : 0}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* تفاصيل المبيعات والأصناف الأكثر طلباً */}
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* الأصناف الـ 6 الأكثر طلباً */}
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur">
+                      <h3 className="text-xs font-black mb-4 flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-primary" /> الأصناف الـ 6 الأكثر طلباً ومبيعاً
+                      </h3>
+                      <div className="space-y-3.5">
+                        {reports.topItems?.map((item: any, idx: number) => {
+                          const maxQty = reports.topItems[0]?.total_qty || 1;
+                          const percent = (item.total_qty / maxQty) * 100;
+                          return (
+                            <div key={item.name} className="space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-extrabold text-foreground">
+                                  {idx + 1}. {item.name}
+                                </span>
+                                <span className="text-muted-foreground font-bold">
+                                  {item.total_qty} طلبية ({EGP(item.total_sales)})
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-[#050908] rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-emerald-500 to-primary rounded-full transition-all duration-500"
+                                  style={{ width: `${percent}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {!reports.topItems?.length && (
+                          <p className="text-xs text-muted-foreground text-center py-12">لا توجد مبيعات في هذه الفترة</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* المبيعات حسب فئة المنيو */}
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur flex flex-col justify-between">
+                      <h3 className="text-xs font-black mb-4 flex items-center gap-2">
+                        <BarChart2 className="h-4 w-4 text-primary" /> مبيعات أقسام المنيو والوجبات
+                      </h3>
+                      <div className="h-48 relative flex items-center justify-center">
+                        {isMounted && reports.categorySales?.length ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={reports.categorySales}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={45}
+                                outerRadius={65}
+                                paddingAngle={3}
+                                dataKey="value"
+                                nameKey="category"
+                              >
+                                {reports.categorySales.map((_: any, index: number) => (
+                                  <Cell
+                                    key={`cell-rep-${index}`}
+                                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                                  />
+                                ))}
+                              </Pie>
+                              <Tooltip contentStyle={{ backgroundColor: "#0b1411" }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <p className="text-xs text-muted-foreground text-center">لا توجد بيانات بيع مسجلة بعد</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1.5 justify-center text-[10px] mt-4">
+                        {reports.categorySales?.map((cs: any, idx: number) => (
+                          <span key={cs.category} className="flex items-center gap-1.5 font-bold">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                            ></span>
+                            {cs.category}: {EGP(cs.value)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* الهواك والتوصيات الإدارية */}
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* تقرير الهالك التشغيلي */}
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur space-y-4">
+                      <h3 className="text-xs font-black text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" /> تقرير الهالك التشغيلي للمخزون
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-muted-foreground border-b border-white/5">
+                              <th className="py-2 text-start">اسم المكون</th>
+                              <th className="py-2 text-end">الكمية التالفة</th>
+                              <th className="py-2 text-end">الحالة التشغيلية</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reports.wasteSummary?.map((w: any) => (
+                              <tr key={w.id} className="border-b border-white/5">
+                                <td className="py-2.5 font-extrabold text-foreground">{w.name}</td>
+                                <td className="py-2.5 text-end font-bold text-destructive">
+                                  {w.qty} {w.unit}
+                                </td>
+                                <td className="py-2.5 text-end">
+                                  <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-destructive/10 text-destructive">
+                                    فاقد تشغيلي
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                            {!reports.wasteSummary?.length && (
+                              <tr>
+                                <td colSpan={3} className="text-center py-12 text-muted-foreground text-xs">
+                                  لا يوجد هالك مسجل في هذه الفترة (ممتاز!)
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* توصيات وتحليلات ذكية */}
+                    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur space-y-4">
+                      <h3 className="text-xs font-black text-primary flex items-center gap-2">
+                        <Activity className="h-4 w-4" /> توصيات إدارية وتحليلات ذكية للفرع
+                      </h3>
+                      <div className="space-y-3 text-xs leading-relaxed">
+                        <div className="bg-[#050908]/50 border border-white/5 rounded-xl p-3 flex gap-2">
+                          <span className="text-primary text-base select-none">💡</span>
+                          <div>
+                            <p className="font-extrabold text-foreground">تحليل المبيعات والأقسام</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              أقسام المنيو الأكثر تحقيقاً للدخل هي قسم ({reports.categorySales?.sort((a: any, b: any) => b.value - a.value)[0]?.category || "السندوتشات"}) بنسبة تزيد عن{" "}
+                              {reports.categorySales?.length 
+                                ? ((reports.categorySales?.sort((a: any, b: any) => b.value - a.value)[0]?.value / (reports.financialSummary.revenue || 1)) * 100).toFixed(0) 
+                                : 0}%.
+                              يرجى التركيز على تحسين جودة هذا القسم وتحديث أصنافه دورياً.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#050908]/50 border border-white/5 rounded-xl p-3 flex gap-2">
+                          <span className="text-primary text-base select-none">🚨</span>
+                          <div>
+                            <p className="font-extrabold text-foreground">الرقابة والتحكم بالهالك</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {reports.wasteSummary?.length > 0 
+                                ? `تم تسجيل هالك لعدد ${reports.wasteSummary.length} مكونات. يرجى توجيه الشيفات لضبط استهلاك المكونات وتقنين أحجام الوجبات لخفض نسب الفاقد.` 
+                                : "لم يتم تسجيل أي هالك تشغيلي للمخزون في هذه الفترة، وهذا يدل على ضبط ممتاز لاستخدام المواد الخام."}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#050908]/50 border border-white/5 rounded-xl p-3 flex gap-2">
+                          <span className="text-primary text-base select-none">💳</span>
+                          <div>
+                            <p className="font-extrabold text-foreground">مراقبة السيولة الدفعية</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              تأكد من تسوية الحسابات الرقمية والـ Instapay بشكل يومي لمنع تراكم المستحقات وضمان توافر سيولة كافية للمصروفات النثرية اليومية للمطعم.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-16 text-muted-foreground text-xs">فشل تحميل بيانات التقارير</div>
+              )}
             </TabsContent>
 
             {/* 2. HR & SALARIES TAB */}

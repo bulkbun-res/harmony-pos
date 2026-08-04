@@ -290,3 +290,142 @@ export const deleteExpenseFn = createServerFn({ method: "POST" })
     await db.prepare("DELETE FROM expenses WHERE id = ?").bind(data.id).run();
     return { ok: true };
   });
+
+export const getDetailedReportsFn = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      days: z.number().default(30),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await assertAdmin();
+    const db = await getD1();
+
+    // 1. المنتجات الأكثر مبيعاً
+    const topItemsResult = await db
+      .prepare(
+        `SELECT name, SUM(qty) as total_qty, SUM(qty * unit_price) as total_sales
+         FROM sales_order_items i
+         JOIN sales_orders o ON i.order_id = o.id
+         WHERE o.status = 'paid' AND o.created_at >= date('now', ?)
+         GROUP BY name
+         ORDER BY total_qty DESC
+         LIMIT 6`,
+      )
+      .bind(`-${data.days} days`)
+      .all();
+
+    // 2. توزيع المبيعات حسب الفئات
+    const salesItemsResult = await db
+      .prepare(
+        `SELECT name, SUM(qty * unit_price) as total_sales
+         FROM sales_order_items i
+         JOIN sales_orders o ON i.order_id = o.id
+         WHERE o.status = 'paid' AND o.created_at >= date('now', ?)
+         GROUP BY name`,
+      )
+      .bind(`-${data.days} days`)
+      .all();
+
+    const categoryMap: Record<string, number> = {};
+    const classifyItem = (name: string) => {
+      if (name.includes("برجر") || name.includes("ميني") || name.includes("سندوتش")) return "سندوتشات";
+      if (name.includes("مكرونة") || name.includes("باستا")) return "مكرونات";
+      if (name.includes("عصير") || name.includes("كانز") || name.includes("مياه") || name.includes("مشروب")) return "مشروبات";
+      if (name.includes("بطاطس") || name.includes("سلطة") || name.includes("ثومية")) return "أطباق جانبية";
+      if (name.includes("شوكولاتة") || name.includes("كيك") || name.includes("وافل") || name.includes("حلو")) return "حلويات";
+      return "أخرى";
+    };
+
+    const itemsList = (salesItemsResult.results ?? []) as Array<{ name: string; total_sales: number }>;
+    for (const item of itemsList) {
+      const cat = classifyItem(item.name);
+      categoryMap[cat] = (categoryMap[cat] || 0) + item.total_sales;
+    }
+
+    const categorySales = Object.entries(categoryMap).map(([category, value]) => ({
+      category,
+      value,
+    }));
+
+    // 3. التقرير المالي الشامل
+    const revenueResult = await db
+      .prepare(
+        `SELECT COALESCE(SUM(total), 0) as total FROM sales_orders 
+         WHERE status = 'paid' AND created_at >= date('now', ?)`
+      )
+      .bind(`-${data.days} days`)
+      .first<{ total: number }>();
+
+    const expensesResult = await db
+      .prepare(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
+         WHERE category != 'salaries' AND date >= date('now', ?)`
+      )
+      .bind(`-${data.days} days`)
+      .first<{ total: number }>();
+
+    const salariesResult = await db
+      .prepare(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
+         WHERE category = 'salaries' AND date >= date('now', ?)`
+      )
+      .bind(`-${data.days} days`)
+      .first<{ total: number }>();
+
+    const revenue = revenueResult?.total ?? 0;
+    const cogs = revenue * 0.35; // 35% تكلفة المواد الخام
+    const salaries = salariesResult?.total ?? 0;
+    const operational = expensesResult?.total ?? 0;
+    const netProfit = revenue - cogs - salaries - operational;
+
+    // 4. تقرير الهالك
+    const wasteResult = await db
+      .prepare(
+        `SELECT ingredient_id, SUM(ABS(qty)) as total_qty
+         FROM inventory_logs
+         WHERE reason = 'waste' AND created_at >= date('now', ?)
+         GROUP BY ingredient_id
+         ORDER BY total_qty DESC`
+      )
+      .bind(`-${data.days} days`)
+      .all();
+
+    const INGREDIENT_NAMES: Record<string, { name: string; unit: string }> = {
+      "ing-bread": { name: "عيش سندوتش", unit: "قطعة" },
+      "ing-chicken": { name: "صدور دجاج", unit: "جرام" },
+      "ing-beef": { name: "لحم بيف", unit: "جرام" },
+      "ing-tuna": { name: "تونة", unit: "جرام" },
+      "ing-onion": { name: "بصل", unit: "جرام" },
+      "ing-garlic": { name: "ثوم", unit: "جرام" },
+      "ing-tomato": { name: "طماطم", unit: "جرام" },
+      "ing-lettuce": { name: "خس", unit: "جرام" },
+      "ing-cheese": { name: "جبنة", unit: "جرام" },
+      "ing-sauce": { name: "صوص", unit: "مللي" },
+      "ing-potato": { name: "بطاطس", unit: "جرام" },
+    };
+
+    const wasteLogs = (wasteResult.results ?? []) as Array<{ ingredient_id: string; total_qty: number }>;
+    const wasteSummary = wasteLogs.map((log) => {
+      const meta = INGREDIENT_NAMES[log.ingredient_id] || { name: log.ingredient_id, unit: "وحدة" };
+      return {
+        id: log.ingredient_id,
+        name: meta.name,
+        qty: log.total_qty,
+        unit: meta.unit,
+      };
+    });
+
+    return {
+      topItems: (topItemsResult.results ?? []) as Array<{ name: string; total_qty: number; total_sales: number }>,
+      categorySales,
+      financialSummary: {
+        revenue,
+        cogs,
+        salaries,
+        operational,
+        netProfit,
+      },
+      wasteSummary,
+    };
+  });
