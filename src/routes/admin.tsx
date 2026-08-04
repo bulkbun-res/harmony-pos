@@ -182,6 +182,11 @@ function AdminDashboard() {
   const toggleUser = useServerFn(toggleUserFn);
 
   // الحالات المحلية
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [activeTab, setActiveTab] = useState("analytics");
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -216,6 +221,7 @@ function AdminDashboard() {
       setExpenses(ex);
       setUsersList(u);
     } catch (err: unknown) {
+      console.error("Failed to load admin dashboard data:", err);
       const error = err as Error;
       toast.error(error.message || "تعذر تحميل البيانات");
     } finally {
@@ -515,8 +521,9 @@ function AdminDashboard() {
                     يوم)
                   </h3>
                   <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={metrics?.salesTrend ?? []}>
+                    {isMounted && metrics?.salesTrend?.length ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={metrics?.salesTrend ?? []}>
                         <XAxis
                           dataKey="date"
                           stroke="#888888"
@@ -553,7 +560,12 @@ function AdminDashboard() {
                           dot={false}
                         />
                       </LineChart>
-                    </ResponsiveContainer>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                        لا توجد بيانات بيع مسجلة لآخر 30 يوم
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -563,11 +575,11 @@ function AdminDashboard() {
                     <CreditCard className="h-4 w-4 text-primary" /> طرق الدفع المفضلة
                   </h3>
                   <div className="h-48 flex-1 relative">
-                    {metrics?.paymentMethods?.length ? (
+                    {isMounted && metrics?.paymentMethods?.length ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={metrics.paymentMethods}
+                            data={metrics?.paymentMethods ?? []}
                             cx="50%"
                             cy="50%"
                             innerRadius={50}
@@ -576,7 +588,7 @@ function AdminDashboard() {
                             dataKey="value"
                             nameKey="payment_method"
                           >
-                            {metrics.paymentMethods.map((_: unknown, index: number) => (
+                            {(metrics?.paymentMethods ?? []).map((_: unknown, index: number) => (
                               <Cell
                                 key={`cell-${index}`}
                                 fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -613,9 +625,9 @@ function AdminDashboard() {
                     <Clock className="h-4 w-4 text-primary" /> مبيعات ساعات الذروة (آخر 7 أيام)
                   </h3>
                   <div className="h-56">
-                    {metrics?.peakHours?.length ? (
+                    {isMounted && metrics?.peakHours?.length ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={metrics.peakHours}>
+                        <BarChart data={metrics?.peakHours ?? []}>
                           <XAxis
                             dataKey="hour"
                             stroke="#888888"

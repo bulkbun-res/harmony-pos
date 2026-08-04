@@ -216,7 +216,7 @@ function PosScreen() {
 
           <div
             ref={gridRef}
-            className="grid min-h-0 flex-1 gap-[10px] overflow-hidden"
+            className="grid min-h-0 flex-1 gap-[10px] overflow-y-auto pr-1"
             style={{
               gridTemplateColumns: `repeat(${fit.cols}, minmax(0, 1fr))`,
               gridAutoRows: `${fit.rowHeight}px`,
@@ -458,7 +458,7 @@ function useAutoFitGrid(ref: React.RefObject<HTMLDivElement | null>, items: Item
       if (cellW < 56) break;
       const rows = packedRows(spans, cols);
       const cellH = (box.h - gap * (rows - 1)) / rows;
-      if (cellH < 44) continue;
+      if (cellH < 80) continue;
       const ratio = Math.min(cellW, cellH) / Math.max(cellW, cellH);
       const score = Math.min(cellW, cellH * 1.7) * (0.6 + 0.4 * ratio);
       if (score > bestScore) {
@@ -473,7 +473,7 @@ function useAutoFitGrid(ref: React.RefObject<HTMLDivElement | null>, items: Item
       const rows = packedRows(spans, cols);
       best = {
         cols,
-        rowHeight: Math.max(40, Math.floor((box.h - gap * (rows - 1)) / rows)),
+        rowHeight: Math.max(80, Math.floor((box.h - gap * (rows - 1)) / rows)),
       };
     }
     return best;
