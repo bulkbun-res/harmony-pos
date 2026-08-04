@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Circle, Move, RotateCcw, Square } from "lucide-react";
 import { toast } from "sonner";
 
+import { AuthGuard } from "@/components/AuthGuard";
 import { PosHeader } from "@/components/pos/PosHeader";
 import { ItemTile } from "@/components/pos/ItemTile";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,11 @@ export const Route = createFileRoute("/layout")({
       { property: "og:description", content: "توزيع وتحجيم مربعات الأصناف بسهولة." },
     ],
   }),
-  component: LayoutDesigner,
+  component: () => (
+    <AuthGuard>
+      <LayoutDesigner />
+    </AuthGuard>
+  ),
 });
 
 function LayoutDesigner() {

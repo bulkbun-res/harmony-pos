@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Ban, Printer, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AuthGuard } from "@/components/AuthGuard";
 import { PosHeader } from "@/components/pos/PosHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,11 @@ export const Route = createFileRoute("/orders")({
       },
     ],
   }),
-  component: OrdersScreen,
+  component: () => (
+    <AuthGuard>
+      <OrdersScreen />
+    </AuthGuard>
+  ),
 });
 
 const fmtTime = (t: number) =>
@@ -63,17 +68,17 @@ function OrdersScreen() {
       )
       .filter((o) =>
         term
-          ? String(o.orderNo).includes(term) ||
-            o.lines.some((l) => l.name.includes(term))
+          ? String(o.orderNo).includes(term) || o.lines.some((l) => l.name.includes(term))
           : true,
       );
   }, [state.orders, q, filter]);
 
-  const selected: Order | null =
-    orders.find((o) => o.id === selectedId) ?? orders[0] ?? null;
+  const selected: Order | null = orders.find((o) => o.id === selectedId) ?? orders[0] ?? null;
 
   const today = state.orders.filter(
-    (o) => o.status !== "cancelled" && new Date(o.createdAt).toDateString() === new Date().toDateString(),
+    (o) =>
+      o.status !== "cancelled" &&
+      new Date(o.createdAt).toDateString() === new Date().toDateString(),
   );
   const todayTotal = today.filter(isPaid).reduce((s, o) => s + o.total, 0);
   const todayUnpaid = today.filter((o) => !isPaid(o)).reduce((s, o) => s + o.total, 0);
@@ -89,7 +94,6 @@ function OrdersScreen() {
       `تم تسجيل الدفع للفاتورة #${o.orderNo} — ${PAYMENT_METHODS.find((m) => m.id === method)?.label}`,
     );
   };
-
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
@@ -153,7 +157,9 @@ function OrdersScreen() {
                 onClick={() => setSelectedId(o.id)}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-2xl border-2 bg-card px-4 py-3 text-start transition-colors",
-                  selected?.id === o.id ? "border-primary" : "border-border hover:border-primary/40",
+                  selected?.id === o.id
+                    ? "border-primary"
+                    : "border-border hover:border-primary/40",
                 )}
               >
                 <div className="min-w-0 flex-1">
@@ -188,7 +194,9 @@ function OrdersScreen() {
                 <span
                   className={cn(
                     "shrink-0 text-base font-black",
-                    o.status === "cancelled" ? "text-muted-foreground line-through" : "text-primary",
+                    o.status === "cancelled"
+                      ? "text-muted-foreground line-through"
+                      : "text-primary",
                   )}
                 >
                   {EGP(o.total)}
@@ -275,15 +283,11 @@ function OrdersScreen() {
                   </div>
                 )}
 
-
-
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <Button
                     className="col-span-2 h-12 text-base font-extrabold"
                     disabled={selected.status === "cancelled"}
-                    onClick={() =>
-                      void navigate({ to: "/", search: { order: selected.id } })
-                    }
+                    onClick={() => void navigate({ to: "/", search: { order: selected.id } })}
                   >
                     <RotateCcw className="h-5 w-5" /> استرجاع وزيادة أصناف
                   </Button>

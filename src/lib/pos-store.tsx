@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { syncOrderFn, syncInventoryLogFn } from "./sync.functions";
 import type {
   Group,
   Ingredient,
@@ -82,7 +83,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "200 جرام صدور فراخ جريل مع صوص هاني ماسترد | 700 سعرة | 68 جرام بروتين",
-      image: "local:sandwiches-0"
+      image: "local:sandwiches-0",
     },
     {
       id: "sl-tandoori",
@@ -97,7 +98,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "200 جرام صدور فراخ جريل متبلة على الطريقة الهندية | 600 سعرة | 68 جرام بروتين",
-      image: "local:sandwiches-1"
+      image: "local:sandwiches-1",
     },
     {
       id: "sl-fajita",
@@ -112,7 +113,7 @@ export const defaultState = (): PosState => {
       order: 2,
       modifiers: [],
       desc: "200 جرام فراخ فاهيتا بالفلفل والألوان | 600 سعرة | 68 جرام بروتين",
-      image: "local:sandwiches-5"
+      image: "local:sandwiches-5",
     },
     {
       id: "sl-roast-beef",
@@ -127,7 +128,7 @@ export const defaultState = (): PosState => {
       order: 3,
       modifiers: [],
       desc: "100 جرام روست بيف مدخن عالي الجودة | 700 سعرة | 36 جرام بروتين",
-      image: "local:sandwiches-2"
+      image: "local:sandwiches-2",
     },
     {
       id: "sl-hotdog",
@@ -142,7 +143,7 @@ export const defaultState = (): PosState => {
       order: 4,
       modifiers: [],
       desc: "150 جرام هوت دوج مشوي متبل | 800 سعرة | 30 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-salami",
@@ -157,7 +158,7 @@ export const defaultState = (): PosState => {
       order: 5,
       modifiers: [],
       desc: "100 جرام سلامي بيف مدخن | 650 سعرة | 26 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-classic-tuna",
@@ -172,7 +173,7 @@ export const defaultState = (): PosState => {
       order: 6,
       modifiers: [],
       desc: "100 جرام تونة مصفاة بزيت الزيتون | 500 سعرة | 34 جرام بروتين",
-      image: "local:sandwiches-3"
+      image: "local:sandwiches-3",
     },
     {
       id: "sl-bulk-tuna",
@@ -187,7 +188,7 @@ export const defaultState = (): PosState => {
       order: 7,
       modifiers: [],
       desc: "100 جرام تونة بخلطة البصل والفلفل الخاصة | 560 سعرة | 39 جرام بروتين",
-      image: "local:sandwiches-3"
+      image: "local:sandwiches-3",
     },
     {
       id: "sl-tuna-salad",
@@ -202,7 +203,7 @@ export const defaultState = (): PosState => {
       order: 8,
       modifiers: [],
       desc: "100 جرام سلطة تونة غنية بالخضار والذرة | 600 سعرة | 42 جرام بروتين",
-      image: "local:sandwiches-3"
+      image: "local:sandwiches-3",
     },
     {
       id: "sl-salmon",
@@ -217,7 +218,7 @@ export const defaultState = (): PosState => {
       order: 9,
       modifiers: [],
       desc: "100 جرام سلمون مدخن فاخر مع الكابري والشبت | 500 سعرة | 33 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-mashed-egg",
@@ -232,7 +233,7 @@ export const defaultState = (): PosState => {
       order: 10,
       modifiers: [],
       desc: "2 بيضة مسلوقة مع 100 جرام بطاطس مهروسة متبلة | 500 سعرة | 23 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-pastrami-egg",
@@ -247,7 +248,7 @@ export const defaultState = (): PosState => {
       order: 11,
       modifiers: [],
       desc: "2 بيضة مقلية مع 50 جرام بسطرمة فاخرة | 525 سعرة | 35 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-romi-cheese",
@@ -262,7 +263,7 @@ export const defaultState = (): PosState => {
       order: 12,
       modifiers: [],
       desc: "شرائح جبنة رومي قليلة الدهون والملح | 450 سعرة | 20 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-flamank",
@@ -277,7 +278,7 @@ export const defaultState = (): PosState => {
       order: 13,
       modifiers: [],
       desc: "جبنة فلمنك ممتازة ومغذية | 450 سعرة | 24 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-turkish",
@@ -292,7 +293,7 @@ export const defaultState = (): PosState => {
       order: 14,
       modifiers: [],
       desc: "جبنة بيضاء إسطنبولي حادقة خفيفة | 450 سعرة | 24 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-feta",
@@ -307,7 +308,7 @@ export const defaultState = (): PosState => {
       order: 15,
       modifiers: [],
       desc: "جبنة فيتا كريمية قليلة الدسم مع شرائح الخيار | 450 سعرة | 20 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-cottage",
@@ -322,7 +323,7 @@ export const defaultState = (): PosState => {
       order: 16,
       modifiers: [],
       desc: "جبنة قريش ريكوتا غنية بالكالسيوم مع حبة البركة | 320 سعرة | 24 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sl-healthy-potato",
@@ -337,7 +338,7 @@ export const defaultState = (): PosState => {
       order: 17,
       modifiers: [],
       desc: "بطاطس بيوريه مهروسة متبلة بالأعشاب | 550 سعرة | 10 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
 
     // 2. Sandwiches - Mini (Mini Bun)
@@ -354,7 +355,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "100 جرام صدور فراخ جريل مع صوص هاني ماسترد | 350 سعرة | 34 جرام بروتين",
-      image: "local:sandwiches-0"
+      image: "local:sandwiches-0",
     },
     {
       id: "sm-tandoori",
@@ -369,7 +370,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "100 جرام صدور فراخ جريل متبلة على الطريقة الهندية | 300 سعرة | 34 جرام بروتين",
-      image: "local:sandwiches-1"
+      image: "local:sandwiches-1",
     },
     {
       id: "sm-fajita",
@@ -384,7 +385,7 @@ export const defaultState = (): PosState => {
       order: 2,
       modifiers: [],
       desc: "100 جرام فراخ فاهيتا بالفلفل والألوان | 300 سعرة | 34 جرام بروتين",
-      image: "local:sandwiches-5"
+      image: "local:sandwiches-5",
     },
     {
       id: "sm-roast-beef",
@@ -399,7 +400,7 @@ export const defaultState = (): PosState => {
       order: 3,
       modifiers: [],
       desc: "50 جرام روست بيف مدخن عالي الجودة | 350 سعرة | 18 جرام بروتين",
-      image: "local:sandwiches-2"
+      image: "local:sandwiches-2",
     },
     {
       id: "sm-hotdog",
@@ -414,7 +415,7 @@ export const defaultState = (): PosState => {
       order: 4,
       modifiers: [],
       desc: "75 جرام هوت دوج مشوي متبل | 400 سعرة | 15 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-salami",
@@ -429,7 +430,7 @@ export const defaultState = (): PosState => {
       order: 5,
       modifiers: [],
       desc: "50 جرام سلامي بيف مدخن | 325 سعرة | 13 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-classic-tuna",
@@ -444,7 +445,7 @@ export const defaultState = (): PosState => {
       order: 6,
       modifiers: [],
       desc: "50 جرام تونة مصفاة بزيت الزيتون | 250 سعرة | 17 جرام بروتين",
-      image: "local:sandwiches-3"
+      image: "local:sandwiches-3",
     },
     {
       id: "sm-bulk-tuna",
@@ -459,7 +460,7 @@ export const defaultState = (): PosState => {
       order: 7,
       modifiers: [],
       desc: "50 جرام تونة بخلطة البصل والفلفل الخاصة | 280 سعرة | 19.5 جرام بروتين",
-      image: "local:sandwiches-3"
+      image: "local:sandwiches-3",
     },
     {
       id: "sm-tuna-salad",
@@ -474,7 +475,7 @@ export const defaultState = (): PosState => {
       order: 8,
       modifiers: [],
       desc: "50 جرام سلطة تونة غنية بالخضار والذرة | 300 سعرة | 21 جرام بروتين",
-      image: "local:sandwiches-3"
+      image: "local:sandwiches-3",
     },
     {
       id: "sm-salmon",
@@ -489,7 +490,7 @@ export const defaultState = (): PosState => {
       order: 9,
       modifiers: [],
       desc: "50 جرام سلمون مدخن فاخر مع الكابري والشبت | 250 سعرة | 16.5 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-mashed-egg",
@@ -504,7 +505,7 @@ export const defaultState = (): PosState => {
       order: 10,
       modifiers: [],
       desc: "1 بيضة مسلوقة مع 50 جرام بطاطس مهروسة متبلة | 250 سعرة | 11.5 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-pastrami-egg",
@@ -519,7 +520,7 @@ export const defaultState = (): PosState => {
       order: 11,
       modifiers: [],
       desc: "1 بيضة مقلية مع 25 جرام بسطرمة فاخرة | 262.5 سعرة | 17.5 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-romi-cheese",
@@ -534,7 +535,7 @@ export const defaultState = (): PosState => {
       order: 12,
       modifiers: [],
       desc: "شرائح جبنة رومي قليلة الدهون والملح | 225 سعرة | 10 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-flamank",
@@ -549,7 +550,7 @@ export const defaultState = (): PosState => {
       order: 13,
       modifiers: [],
       desc: "جبنة فلمنك ممتازة ومغذية | 225 سعرة | 12 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-turkish",
@@ -564,7 +565,7 @@ export const defaultState = (): PosState => {
       order: 14,
       modifiers: [],
       desc: "جبنة بيضاء إسطنبولي حادقة خفيفة | 225 سعرة | 12 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-feta",
@@ -579,7 +580,7 @@ export const defaultState = (): PosState => {
       order: 15,
       modifiers: [],
       desc: "جبنة فيتا كريمية قليلة الدسم مع شرائح الخيار | 225 سعرة | 10 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-cottage",
@@ -594,7 +595,7 @@ export const defaultState = (): PosState => {
       order: 16,
       modifiers: [],
       desc: "جبنة قريش ريكوتا غنية بالكالسيوم مع حبة البركة | 160 سعرة | 12 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
     {
       id: "sm-healthy-potato",
@@ -609,7 +610,7 @@ export const defaultState = (): PosState => {
       order: 17,
       modifiers: [],
       desc: "بطاطس بيوريه مهروسة متبلة بالأعشاب | 275 سعرة | 5 جرام بروتين",
-      image: "local:generic-sandwich"
+      image: "local:generic-sandwich",
     },
 
     // 3. Pasta (One Size)
@@ -626,7 +627,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "150 جرام دجاج جريل، اختيارك من الصوص والشكل | 610 سعرة | 50 جرام بروتين",
-      image: "local:generic-meal"
+      image: "local:generic-meal",
     },
     {
       id: "pa-beef",
@@ -641,7 +642,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "100 جرام لحم مفروم، اختيارك من الصوص والشكل | 545 سعرة | 32 جرام بروتين",
-      image: "local:generic-meal"
+      image: "local:generic-meal",
     },
     {
       id: "pa-sausage",
@@ -656,7 +657,7 @@ export const defaultState = (): PosState => {
       order: 2,
       modifiers: [],
       desc: "100 جرام سجق، اختيارك من الصوص والشكل | 650 سعرة | 20 جرام بروتين",
-      image: "local:generic-meal"
+      image: "local:generic-meal",
     },
 
     // 4. Salads (One Size)
@@ -673,7 +674,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "100 جرام تونة قطع مع طماطم وخيار وبصل وزيت زيتون | 420 سعرة | 35 جرام بروتين",
-      image: "local:salads-2"
+      image: "local:salads-2",
     },
     {
       id: "sa-caesar",
@@ -688,7 +689,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "150 جرام صدور دجاج جريل، خس كابوتشا، كروتوني محمص، صوص سيزر | 600 سعرة | 55 جرام بروتين",
-      image: "local:salads-1"
+      image: "local:salads-1",
     },
 
     // 5. Hot Drinks (مشروبات ساخنة)
@@ -705,7 +706,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "شاي فتلة أسود فاخر (سادة أو بالنعناع)",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-coffee",
@@ -720,7 +721,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "قهوة تركي طازجة (بن فاتح أو وسط - محوج أو سادة)",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-espresso-s",
@@ -735,7 +736,7 @@ export const defaultState = (): PosState => {
       order: 2,
       modifiers: [],
       desc: "Single shot espresso",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-espresso-d",
@@ -750,7 +751,7 @@ export const defaultState = (): PosState => {
       order: 3,
       modifiers: [],
       desc: "Double shot espresso",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-cappuccino",
@@ -765,7 +766,7 @@ export const defaultState = (): PosState => {
       order: 4,
       modifiers: [],
       desc: "إسبريسو مع فوم حليب كثيف دافي",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-american",
@@ -780,7 +781,7 @@ export const defaultState = (): PosState => {
       order: 5,
       modifiers: [],
       desc: "قهوة أمريكية مصفاة كلاسيكية دافية",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-latte",
@@ -795,7 +796,7 @@ export const defaultState = (): PosState => {
       order: 6,
       modifiers: [],
       desc: "إسبريسو مع حليب ساخن مفوم",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-flatwhite",
@@ -810,7 +811,7 @@ export const defaultState = (): PosState => {
       order: 7,
       modifiers: [],
       desc: "Double shot ristretto with silky microfoam",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-macchiato",
@@ -825,7 +826,7 @@ export const defaultState = (): PosState => {
       order: 8,
       modifiers: [],
       desc: "إسبريسو مع بقعة صغيرة من الحليب المفوم",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-herbs",
@@ -840,7 +841,7 @@ export const defaultState = (): PosState => {
       order: 9,
       modifiers: [],
       desc: "اختر من: نعناع / زنجبيل / قرفة / تيليو / شاي أخضر",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
     {
       id: "dh-celery",
@@ -855,7 +856,7 @@ export const defaultState = (): PosState => {
       order: 10,
       modifiers: [],
       desc: "مشروب كرفس وبقدونس صحي مسلوق ودافي ومصفى",
-      image: "local:generic-drink"
+      image: "local:generic-drink",
     },
 
     // 6. Cold Drinks & Juices (عصائر ومشروبات)
@@ -872,7 +873,7 @@ export const defaultState = (): PosState => {
       order: 0,
       modifiers: [],
       desc: "موز فريش مضروب باللبن والعسل الطبيعي بدون سكر",
-      image: "local:drinks-banana"
+      image: "local:drinks-banana",
     },
     {
       id: "dc-mango",
@@ -887,7 +888,7 @@ export const defaultState = (): PosState => {
       order: 1,
       modifiers: [],
       desc: "عصير مانجو طبيعي 100% بارد ومنعش",
-      image: "local:drinks-mango"
+      image: "local:drinks-mango",
     },
     {
       id: "dc-guava",
@@ -902,7 +903,7 @@ export const defaultState = (): PosState => {
       order: 2,
       modifiers: [],
       desc: "عصير جوافة طبيعي منعش وخفيف",
-      image: "local:drinks-guava"
+      image: "local:drinks-guava",
     },
     {
       id: "dc-strawberry",
@@ -917,7 +918,7 @@ export const defaultState = (): PosState => {
       order: 3,
       modifiers: [],
       desc: "عصير فراولة طبيعي مثلج وطازج",
-      image: "local:drinks-strawberry"
+      image: "local:drinks-strawberry",
     },
     {
       id: "dc-orange",
@@ -932,7 +933,7 @@ export const defaultState = (): PosState => {
       order: 4,
       modifiers: [],
       desc: "برتقال طبيعي معصور على البارد بدون سكر أو مواد حافظة",
-      image: "local:drinks-1"
+      image: "local:drinks-1",
     },
     {
       id: "dc-affogato",
@@ -947,7 +948,7 @@ export const defaultState = (): PosState => {
       order: 5,
       modifiers: [],
       desc: "بولات آيس كريم فانيليا غنية يصب عليها إسبريسو ساخن فريش",
-      image: "local:drinks-3"
+      image: "local:drinks-3",
     },
     {
       id: "dc-vcola",
@@ -962,7 +963,7 @@ export const defaultState = (): PosState => {
       order: 6,
       modifiers: [],
       desc: "مشروب غازي كولا منعش",
-      image: "local:drinks-2"
+      image: "local:drinks-2",
     },
     {
       id: "dc-redbull",
@@ -977,7 +978,7 @@ export const defaultState = (): PosState => {
       order: 7,
       modifiers: [],
       desc: "Red Bull Energy Drink",
-      image: "local:drinks-2"
+      image: "local:drinks-2",
     },
     {
       id: "dc-water",
@@ -992,7 +993,7 @@ export const defaultState = (): PosState => {
       order: 8,
       modifiers: [],
       desc: "زجاجة مياه معدنية طبيعية باردة",
-      image: "local:drinks-0"
+      image: "local:drinks-0",
     },
     {
       id: "dc-suntop",
@@ -1007,7 +1008,7 @@ export const defaultState = (): PosState => {
       order: 9,
       modifiers: [],
       desc: "عصير صن توب للأطفال (جميع النكهات)",
-      image: "local:drinks-1"
+      image: "local:drinks-1",
     },
   ];
 
@@ -1118,12 +1119,7 @@ interface Ctx {
   updateIngredient: (id: string, patch: Partial<Ingredient>) => void;
   removeIngredient: (id: string) => void;
   /** إضافة/خصم كمية من المخزن مع تسجيل الحركة */
-  stockMove: (
-    ingredientId: string,
-    qty: number,
-    reason: StockMoveReason,
-    note?: string,
-  ) => void;
+  stockMove: (ingredientId: string, qty: number, reason: StockMoveReason, note?: string) => void;
   startShift: () => void;
   deleteOrder: (id: string) => void;
   resetAll: () => void;
@@ -1179,9 +1175,7 @@ const applyStock = (
   return {
     ...s,
     ingredients: s.ingredients.map((i) =>
-      delta[i.id]
-        ? { ...i, stock: Math.round((i.stock + (delta[i.id] ?? 0)) * 1000) / 1000 }
-        : i,
+      delta[i.id] ? { ...i, stock: Math.round((i.stock + (delta[i.id] ?? 0)) * 1000) / 1000 } : i,
     ),
     stockMoves: [...moves, ...s.stockMoves].slice(0, 2000),
   };
@@ -1299,8 +1293,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
           ...s,
           items: s.items.map((x) => (x.id === id ? { ...x, ...patch } : x)),
         })),
-      removeItem: (id) =>
-        setState((s) => ({ ...s, items: s.items.filter((x) => x.id !== id) })),
+      removeItem: (id) => setState((s) => ({ ...s, items: s.items.filter((x) => x.id !== id) })),
       reorderItem: (groupId, from, to) =>
         setState((s) => {
           if (from === to) return s;
@@ -1339,8 +1332,19 @@ export function PosProvider({ children }: { children: ReactNode }) {
               : i,
           ),
         })),
-      stockMove: (ingredientId, qty, reason, note) =>
-        setState((s) => applyStock(s, { [ingredientId]: qty }, reason, note)),
+      stockMove: (ingredientId, qty, reason, note) => {
+        setState((s) => applyStock(s, { [ingredientId]: qty }, reason, note));
+        void syncInventoryLogFn({
+          data: {
+            id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10),
+            ingredientId,
+            qty,
+            reason,
+            notes: note ?? "",
+            createdAt: Date.now(),
+          },
+        }).catch(console.error);
+      },
       startShift: () => setState((s) => ({ ...s, shiftStartedAt: Date.now() })),
       saveOrder: (order) => {
         let saved: Order = { ...order, orderNo: order.orderNo ?? 0 } as Order;
@@ -1369,9 +1373,35 @@ export function PosProvider({ children }: { children: ReactNode }) {
           };
           return applyStock(next, delta, "sale", undefined, orderNo);
         });
+
+        // مزامنة الفاتورة مع الخادم
+        void syncOrderFn({
+          data: {
+            id: saved.id,
+            orderNo: saved.orderNo,
+            subtotal: saved.subtotal,
+            discount: saved.discount,
+            service: saved.service,
+            tax: saved.tax,
+            total: saved.total,
+            paymentMethod: saved.payments[0]?.method ?? "cash",
+            status: saved.status,
+            createdAt: saved.createdAt,
+            updatedAt: saved.updatedAt,
+            lines: saved.lines.map((l) => ({
+              id: l.lineId,
+              itemId: l.itemId,
+              name: l.name,
+              unitPrice: l.unitPrice,
+              qty: l.qty,
+            })),
+          },
+        }).catch(console.error);
+
         return saved;
       },
-      cancelOrder: (id) =>
+      cancelOrder: (id) => {
+        let cancelledOrder: Order | undefined;
         setState((s) => {
           const order = s.orders.find((o) => o.id === id);
           const next = {
@@ -1380,10 +1410,37 @@ export function PosProvider({ children }: { children: ReactNode }) {
               o.id === id ? { ...o, status: "cancelled" as const, updatedAt: Date.now() } : o,
             ),
           };
+          cancelledOrder = next.orders.find((o) => o.id === id);
           if (!order || order.status === "cancelled") return next;
           const back = usageDelta(s, order.lines, []);
           return applyStock(next, back, "void", "إلغاء فاتورة", order.orderNo);
-        }),
+        });
+
+        if (cancelledOrder) {
+          void syncOrderFn({
+            data: {
+              id: cancelledOrder.id,
+              orderNo: cancelledOrder.orderNo,
+              subtotal: cancelledOrder.subtotal,
+              discount: cancelledOrder.discount,
+              service: cancelledOrder.service,
+              tax: cancelledOrder.tax,
+              total: cancelledOrder.total,
+              paymentMethod: cancelledOrder.payments[0]?.method ?? "cash",
+              status: cancelledOrder.status,
+              createdAt: cancelledOrder.createdAt,
+              updatedAt: cancelledOrder.updatedAt,
+              lines: cancelledOrder.lines.map((l) => ({
+                id: l.lineId,
+                itemId: l.itemId,
+                name: l.name,
+                unitPrice: l.unitPrice,
+                qty: l.qty,
+              })),
+            },
+          }).catch(console.error);
+        }
+      },
       deleteOrder: (id) =>
         setState((s) => {
           const order = s.orders.find((o) => o.id === id);

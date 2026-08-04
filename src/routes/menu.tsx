@@ -61,7 +61,6 @@ export const Route = createFileRoute("/menu")({
 
 const STORAGE_KEY = "bulkbun-online-order";
 
-
 function MenuScreen() {
   const loadMenu = useServerFn(getPublicMenu);
   const submitOrder = useServerFn(placeOrder);
@@ -101,7 +100,6 @@ function MenuScreen() {
     };
   }, [loadMenu]);
 
-
   // متابعة حالة الطلب لحظة بلحظة
   useEffect(() => {
     if (!ticket) return;
@@ -124,10 +122,7 @@ function MenuScreen() {
     };
   }, [ticket, loadStatus]);
 
-  const groups = useMemo(
-    () => [...menu.groups].sort((a, b) => a.order - b.order),
-    [menu.groups],
-  );
+  const groups = useMemo(() => [...menu.groups].sort((a, b) => a.order - b.order), [menu.groups]);
   const items = useMemo(
     () =>
       [...menu.items]
@@ -141,20 +136,16 @@ function MenuScreen() {
   useEffect(() => {
     if (!menu.items.length) return;
     setCart((prev) => {
-      const next = prev.filter(
-        (l) => menu.items.find((i) => i.id === l.itemId)?.available,
-      );
+      const next = prev.filter((l) => menu.items.find((i) => i.id === l.itemId)?.available);
       if (next.length !== prev.length) toast.error("في صنف بقى غير متاح واتشال من طلبك");
       return next.length === prev.length ? prev : next;
     });
   }, [menu.items]);
 
-
   const add = (item: PublicMenuItem) => {
     setCart((prev) => {
       const found = prev.find((l) => l.itemId === item.id);
-      if (found)
-        return prev.map((l) => (l.itemId === item.id ? { ...l, qty: l.qty + 1 } : l));
+      if (found) return prev.map((l) => (l.itemId === item.id ? { ...l, qty: l.qty + 1 } : l));
       return [...prev, { itemId: item.id, name: item.name, unitPrice: item.price, qty: 1 }];
     });
     toast.success(`تمت إضافة ${item.name}`);
@@ -162,7 +153,9 @@ function MenuScreen() {
 
   const setQty = (itemId: string, delta: number) =>
     setCart((prev) =>
-      prev.map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + delta } : l)).filter((l) => l.qty > 0),
+      prev
+        .map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + delta } : l))
+        .filter((l) => l.qty > 0),
     );
 
   const total = sumLines(cart);
@@ -343,11 +336,21 @@ function MenuScreen() {
                     <p className="text-[11px] text-muted-foreground">{EGP(l.unitPrice)}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => setQty(l.itemId, -1)}>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="h-8 w-8"
+                      onClick={() => setQty(l.itemId, -1)}
+                    >
                       <Minus className="h-4 w-4" />
                     </Button>
                     <span className="w-6 text-center font-extrabold">{l.qty}</span>
-                    <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => setQty(l.itemId, 1)}>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="h-8 w-8"
+                      onClick={() => setQty(l.itemId, 1)}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -438,9 +441,7 @@ function OrderTracker({
             ) : (
               <Clock className="h-4 w-4" />
             )}
-            {order.status === "preparing"
-              ? "جاري تجهيز طلبك"
-              : ONLINE_STATUS_LABEL[order.status]}
+            {order.status === "preparing" ? "جاري تجهيز طلبك" : ONLINE_STATUS_LABEL[order.status]}
           </div>
           <p className="text-[11px] text-muted-foreground">
             استلم طلبك من الكاشير برقم الفاتورة ده
@@ -512,9 +513,7 @@ function OrderTracker({
                 <span className="truncate">
                   {l.qty} × {l.name}
                 </span>
-                <span className="shrink-0 font-bold text-primary">
-                  {EGP(l.unitPrice * l.qty)}
-                </span>
+                <span className="shrink-0 font-bold text-primary">{EGP(l.unitPrice * l.qty)}</span>
               </div>
             ))}
           </div>

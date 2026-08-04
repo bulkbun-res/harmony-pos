@@ -11,9 +11,7 @@ export function generateUUID(): string {
 /** يولّد رقم الطلب الأونلاين التسلسلي من جدول order_seq */
 export async function nextOrderNo(db: D1Database): Promise<number> {
   const result = await db
-    .prepare(
-      `UPDATE order_seq SET next_no = next_no + 1 WHERE id = 1 RETURNING next_no`
-    )
+    .prepare(`UPDATE order_seq SET next_no = next_no + 1 WHERE id = 1 RETURNING next_no`)
     .first<{ next_no: number }>();
   return result?.next_no ?? 5001;
 }

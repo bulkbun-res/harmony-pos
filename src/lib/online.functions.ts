@@ -52,7 +52,7 @@ export const publishMenu = createServerFn({ method: "POST" })
       .prepare(
         `INSERT INTO menu_snapshot (id, data, updated_at)
          VALUES ('current', ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
+         ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
       )
       .bind(JSON.stringify(data))
       .run();
@@ -89,9 +89,7 @@ export const placeOrder = createServerFn({ method: "POST" })
     const byId = new Map(parsedMenu.data.items.map((i) => [i.id, i]));
     const unavailable = data.lines.filter((l) => !byId.get(l.itemId)?.available);
     if (unavailable.length) {
-      throw new Error(
-        `الأصناف دي مش متاحة حاليًا: ${unavailable.map((l) => l.name).join("، ")}`
-      );
+      throw new Error(`الأصناف دي مش متاحة حاليًا: ${unavailable.map((l) => l.name).join("، ")}`);
     }
     const lines = data.lines.map((l) => ({
       ...l,
@@ -108,7 +106,7 @@ export const placeOrder = createServerFn({ method: "POST" })
       .prepare(
         `INSERT INTO online_orders
            (id, token, order_no, customer_name, customer_phone, items, total, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
       )
       .bind(id, token, order_no, data.name, data.phone, JSON.stringify(lines), total)
       .run();
@@ -154,7 +152,7 @@ export const respondToProposal = createServerFn({ method: "POST" })
              proposed_total = NULL,
              proposed_at = NULL,
              updated_at = datetime('now')
-           WHERE id = ?`
+           WHERE id = ?`,
         )
         .bind(data.id)
         .run();
@@ -167,7 +165,7 @@ export const respondToProposal = createServerFn({ method: "POST" })
              proposed_total = NULL,
              proposed_at = NULL,
              updated_at = datetime('now')
-           WHERE id = ?`
+           WHERE id = ?`,
         )
         .bind(data.id)
         .run();
@@ -184,13 +182,16 @@ export const respondToProposal = createServerFn({ method: "POST" })
 // ─── posListOrders ────────────────────────────────────────────────────────────
 export const posListOrders = createServerFn({ method: "GET" }).handler(async () => {
   const db = await getD1();
-  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString().replace("T", " ").slice(0, 19);
+  const since = new Date(Date.now() - 24 * 3600 * 1000)
+    .toISOString()
+    .replace("T", " ")
+    .slice(0, 19);
   const result = await db
     .prepare(
       `SELECT * FROM online_orders
        WHERE created_at >= ?
        ORDER BY created_at DESC
-       LIMIT 100`
+       LIMIT 100`,
     )
     .bind(since)
     .all<Record<string, unknown>>();
@@ -211,14 +212,9 @@ export const posProposeEdit = createServerFn({ method: "POST" })
            proposed_at = datetime('now'),
            status = 'awaiting_customer',
            updated_at = datetime('now')
-         WHERE id = ?`
+         WHERE id = ?`,
       )
-      .bind(
-        JSON.stringify(data.lines),
-        sumLines(data.lines),
-        data.note ?? null,
-        data.id
-      )
+      .bind(JSON.stringify(data.lines), sumLines(data.lines), data.note ?? null, data.id)
       .run();
     return { ok: true };
   });
@@ -245,23 +241,19 @@ export const posSetStatus = createServerFn({ method: "POST" })
                proposed_at = NULL,
                status = ?,
                updated_at = datetime('now')
-             WHERE id = ?`
+             WHERE id = ?`,
           )
           .bind(row.proposed_items, row.proposed_total, data.status, data.id)
           .run();
       } else {
         await db
-          .prepare(
-            `UPDATE online_orders SET status = ?, updated_at = datetime('now') WHERE id = ?`
-          )
+          .prepare(`UPDATE online_orders SET status = ?, updated_at = datetime('now') WHERE id = ?`)
           .bind(data.status, data.id)
           .run();
       }
     } else {
       await db
-        .prepare(
-          `UPDATE online_orders SET status = ?, updated_at = datetime('now') WHERE id = ?`
-        )
+        .prepare(`UPDATE online_orders SET status = ?, updated_at = datetime('now') WHERE id = ?`)
         .bind(data.status, data.id)
         .run();
     }
@@ -286,7 +278,7 @@ export const posMarkPaid = createServerFn({ method: "POST" })
            paid_amount = ?,
            paid_at = datetime('now'),
            updated_at = datetime('now')
-         WHERE id = ?`
+         WHERE id = ?`,
       )
       .bind(data.method, data.amount, data.id)
       .run();

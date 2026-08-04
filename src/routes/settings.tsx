@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
-
+import { AuthGuard } from "@/components/AuthGuard";
 import { PosHeader } from "@/components/pos/PosHeader";
 import { LOCAL_IMAGES, resolveItemImage } from "@/lib/menu-images";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePos } from "@/lib/pos-store";
-import {
-  EGP,
-  STOCK_UNITS,
-  TILE_COLORS,
-  type Item,
-  type TileColor,
-} from "@/lib/pos-types";
+import { EGP, STOCK_UNITS, TILE_COLORS, type Item, type TileColor } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
@@ -40,7 +34,11 @@ export const Route = createFileRoute("/settings")({
       { property: "og:description", content: "إدارة أصناف ومجموعات مطعم Bulk Bun." },
     ],
   }),
-  component: SettingsPage,
+  component: () => (
+    <AuthGuard>
+      <SettingsPage />
+    </AuthGuard>
+  ),
 });
 
 async function uploadToImgBB(file: File): Promise<string> {
@@ -83,7 +81,6 @@ function SettingsPage() {
   const [iColor, setIColor] = useState<TileColor>("leaf");
   const [iImage, setIImage] = useState("");
 
-
   const [modName, setModName] = useState("");
   const [modPrice, setModPrice] = useState("");
   const [modItemId, setModItemId] = useState("");
@@ -125,11 +122,7 @@ function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>السعر (ج.م)</Label>
-                  <Input
-                    type="number"
-                    value={iPrice}
-                    onChange={(e) => setIPrice(e.target.value)}
-                  />
+                  <Input type="number" value={iPrice} onChange={(e) => setIPrice(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>المجموعة</Label>
@@ -155,12 +148,18 @@ function SettingsPage() {
                   <div className="flex items-center gap-2">
                     {iImage ? (
                       <img
-                        src={iImage.startsWith("local:") ? resolveItemImage({ id: "", groupId: iGroup, image: iImage }) : iImage}
+                        src={
+                          iImage.startsWith("local:")
+                            ? resolveItemImage({ id: "", groupId: iGroup, image: iImage })
+                            : iImage
+                        }
                         alt="صورة الصنف الجديد"
                         className="h-9 w-12 rounded object-cover"
                       />
                     ) : (
-                      <div className="h-9 w-12 rounded bg-secondary flex items-center justify-center text-[10px] text-muted-foreground">بلا صورة</div>
+                      <div className="h-9 w-12 rounded bg-secondary flex items-center justify-center text-[10px] text-muted-foreground">
+                        بلا صورة
+                      </div>
                     )}
                     <Input
                       type="file"
@@ -176,7 +175,9 @@ function SettingsPage() {
                           setIImage(url);
                           toast.success("تم رفع الصورة بنجاح", { id: toastId });
                         } catch (err) {
-                          toast.error(err instanceof Error ? err.message : "فشل الرفع", { id: toastId });
+                          toast.error(err instanceof Error ? err.message : "فشل الرفع", {
+                            id: toastId,
+                          });
                         }
                       }}
                     />
@@ -272,8 +273,8 @@ function SettingsPage() {
                                 item.image?.startsWith("local:")
                                   ? item.image.slice(6)
                                   : item.image?.startsWith("http")
-                                  ? "custom"
-                                  : ""
+                                    ? "custom"
+                                    : ""
                               }
                               onChange={(e) => {
                                 if (e.target.value === "custom") {
@@ -296,7 +297,7 @@ function SettingsPage() {
                                 </option>
                               ))}
                             </select>
-                            
+
                             <Input
                               type="file"
                               accept="image/*"
@@ -311,7 +312,9 @@ function SettingsPage() {
                                   updateItem(item.id, { image: url });
                                   toast.success("تم رفع الصورة بنجاح", { id: toastId });
                                 } catch (err) {
-                                  toast.error(err instanceof Error ? err.message : "فشل الرفع", { id: toastId });
+                                  toast.error(err instanceof Error ? err.message : "فشل الرفع", {
+                                    id: toastId,
+                                  });
                                 }
                               }}
                             />
@@ -319,14 +322,15 @@ function SettingsPage() {
                               type="button"
                               size="sm"
                               variant="outline"
-                              onClick={() => document.getElementById(`upload-item-file-${item.id}`)?.click()}
+                              onClick={() =>
+                                document.getElementById(`upload-item-file-${item.id}`)?.click()
+                              }
                               className="h-8 w-8 p-0 shrink-0"
                               title="رفع صورة مخصصة"
                             >
                               <Upload className="h-4 w-4" />
                             </Button>
                           </div>
-
                         </div>
 
                         <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -422,10 +426,7 @@ function SettingsPage() {
                     onChange={(e) => updateGroup(g.id, { name: e.target.value })}
                     className="h-9 max-w-[14rem] bg-background font-bold"
                   />
-                  <ColorPicker
-                    value={g.color}
-                    onChange={(c) => updateGroup(g.id, { color: c })}
-                  />
+                  <ColorPicker value={g.color} onChange={(c) => updateGroup(g.id, { color: c })} />
                   <span className="text-xs text-muted-foreground">
                     {state.items.filter((i) => i.groupId === g.id).length} صنف
                   </span>
@@ -536,8 +537,8 @@ function SettingsPage() {
           {/* RECIPES */}
           <TabsContent value="recipes" className="space-y-4 pt-4">
             <p className="text-sm text-muted-foreground">
-              حدّد مكوّنات كل صنف والوزن المستهلك من المخزن لكل وحدة مبيعة — الخصم بيتم
-              تلقائيًا مع كل طلب.
+              حدّد مكوّنات كل صنف والوزن المستهلك من المخزن لكل وحدة مبيعة — الخصم بيتم تلقائيًا مع
+              كل طلب.
             </p>
             {state.items.map((item) => (
               <RecipeEditor key={item.id} item={item} />
@@ -674,13 +675,7 @@ function RecipeEditor({ item }: { item: Item }) {
   );
 }
 
-function ColorPicker({
-  value,
-  onChange,
-}: {
-  value: TileColor;
-  onChange: (c: TileColor) => void;
-}) {
+function ColorPicker({ value, onChange }: { value: TileColor; onChange: (c: TileColor) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
       {(Object.keys(TILE_COLORS) as TileColor[]).map((c) => (

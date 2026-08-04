@@ -24,10 +24,10 @@ import d0 from "@/assets/menu/drinks-0.jpg";
 import d1 from "@/assets/menu/drinks-1.jpg";
 import d2 from "@/assets/menu/drinks-2.jpg";
 import d3 from "@/assets/menu/drinks-3.jpg";
-import dbBanana from "@/assets/menu/drinks-banana.jpg";
-import dbMango from "@/assets/menu/drinks-mango.jpg";
-import dbGuava from "@/assets/menu/drinks-guava.jpg";
-import dbStrawberry from "@/assets/menu/drinks-strawberry.jpg";
+import dbBanana from "@/assets/menu/drinks-banana.png";
+import dbMango from "@/assets/menu/drinks-mango.png";
+import dbGuava from "@/assets/menu/drinks-guava.png";
+import dbStrawberry from "@/assets/menu/drinks-strawberry.png";
 
 /** مكتبة الصور المحلية: المفتاح يتخزن في الصنف بصيغة local:key */
 export const LOCAL_IMAGES: { key: string; label: string; src: string }[] = [
@@ -87,4 +87,3 @@ export const resolveItemImage = (item: {
   }
   return BY_KEY.get(item.id) ?? groupFallbackImage(item.groupId);
 };
-

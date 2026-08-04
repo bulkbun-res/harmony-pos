@@ -1,25 +1,40 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Boxes, History, LayoutGrid, QrCode, Settings, ShoppingBag } from "lucide-react";
+import {
+  Boxes,
+  History,
+  LayoutGrid,
+  QrCode,
+  Settings,
+  ShoppingBag,
+  ShieldAlert,
+} from "lucide-react";
 import logo from "@/assets/bulk-bun-logo.jpeg";
 import { useOnlineAlerts } from "@/lib/use-online-orders";
+import { useAuth } from "@/lib/use-auth";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/", label: "الكاشير", icon: ShoppingBag },
-  { to: "/online", label: "طلبات المنيو", icon: QrCode },
-  { to: "/orders", label: "الفواتير", icon: History },
-  { to: "/inventory", label: "المخزن", icon: Boxes },
-  { to: "/layout", label: "تصميم الشاشة", icon: LayoutGrid },
-  { to: "/settings", label: "الإعدادات", icon: Settings },
+  { to: "/admin", label: "لوحة المدير", icon: ShieldAlert, adminOnly: true },
+  { to: "/", label: "الكاشير", icon: ShoppingBag, adminOnly: false },
+  { to: "/online", label: "طلبات المنيو", icon: QrCode, adminOnly: false },
+  { to: "/orders", label: "الفواتير", icon: History, adminOnly: false },
+  { to: "/inventory", label: "المخزن", icon: Boxes, adminOnly: true },
+  { to: "/layout", label: "تصميم الشاشة", icon: LayoutGrid, adminOnly: true },
+  { to: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },
 ] as const;
 
 export function PosHeader({ right }: { right?: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const pendingOnline = useOnlineAlerts();
+  const { user } = useAuth();
 
+  const filteredNav = NAV.filter((item) => {
+    if (item.adminOnly && user?.role !== "admin") return false;
+    return true;
+  });
 
   return (
-    <header className="sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-sidebar/95 px-3 py-2 backdrop-blur sm:flex sm:justify-between sm:px-5">
+    <header className="sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/5 bg-sidebar/95 px-3 py-2 backdrop-blur sm:flex sm:justify-between sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
         <img
           src={logo}
@@ -35,7 +50,7 @@ export function PosHeader({ right }: { right?: React.ReactNode }) {
       </div>
 
       <nav className="flex items-center gap-1.5">
-        {NAV.map(({ to, label, icon: Icon }) => {
+        {filteredNav.map(({ to, label, icon: Icon }) => {
           const active = pathname === to;
           return (
             <Link
@@ -56,7 +71,6 @@ export function PosHeader({ right }: { right?: React.ReactNode }) {
                 </span>
               )}
             </Link>
-
           );
         })}
         {right}

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, PackagePlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AuthGuard } from "@/components/AuthGuard";
 import { PosHeader } from "@/components/pos/PosHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,12 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePos } from "@/lib/pos-store";
-import {
-  STOCK_REASONS,
-  STOCK_UNITS,
-  type Ingredient,
-  type StockUnit,
-} from "@/lib/pos-types";
+import { STOCK_REASONS, STOCK_UNITS, type Ingredient, type StockUnit } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/inventory")({
@@ -40,7 +36,11 @@ export const Route = createFileRoute("/inventory")({
       },
     ],
   }),
-  component: InventoryScreen,
+  component: () => (
+    <AuthGuard>
+      <InventoryScreen />
+    </AuthGuard>
+  ),
 });
 
 const fmtQty = (n: number, unit: StockUnit) => {
@@ -58,18 +58,11 @@ const fmtTime = (t: number) =>
   });
 
 const pct = (i: Ingredient) => (i.par > 0 ? Math.max(0, Math.min(1, i.stock / i.par)) : 0);
-const statusOf = (i: Ingredient) =>
-  i.stock <= 0 ? "out" : i.stock <= i.lowAt ? "low" : "ok";
+const statusOf = (i: Ingredient) => (i.stock <= 0 ? "out" : i.stock <= i.lowAt ? "low" : "ok");
 
 function InventoryScreen() {
-  const {
-    state,
-    addIngredient,
-    updateIngredient,
-    removeIngredient,
-    stockMove,
-    startShift,
-  } = usePos();
+  const { state, addIngredient, updateIngredient, removeIngredient, stockMove, startShift } =
+    usePos();
 
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<StockUnit>("g");
@@ -116,10 +109,7 @@ function InventoryScreen() {
             </p>
             <div className="flex flex-wrap gap-1.5">
               {lowList.map((i) => (
-                <span
-                  key={i.id}
-                  className="rounded-full bg-background px-3 py-1 text-xs font-bold"
-                >
+                <span key={i.id} className="rounded-full bg-background px-3 py-1 text-xs font-bold">
                   {i.name} — {fmtQty(i.stock, i.unit)}
                 </span>
               ))}
@@ -173,19 +163,11 @@ function InventoryScreen() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>الكمية المرجعية (مخزن ممتلئ)</Label>
-                  <Input
-                    type="number"
-                    value={par}
-                    onChange={(e) => setPar(e.target.value)}
-                  />
+                  <Input type="number" value={par} onChange={(e) => setPar(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>الرصيد الحالي</Label>
-                  <Input
-                    type="number"
-                    value={stock}
-                    onChange={(e) => setStock(e.target.value)}
-                  />
+                  <Input type="number" value={stock} onChange={(e) => setStock(e.target.value)} />
                 </div>
               </div>
               <Button
@@ -295,7 +277,11 @@ function InventoryScreen() {
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          st === "ok" ? "bg-primary" : st === "low" ? "bg-amber-500" : "bg-destructive",
+                          st === "ok"
+                            ? "bg-primary"
+                            : st === "low"
+                              ? "bg-amber-500"
+                              : "bg-destructive",
                         )}
                         style={{ width: `${pct(i) * 100}%` }}
                       />
@@ -330,9 +316,7 @@ function InventoryScreen() {
                     type="number"
                     placeholder="الكمية الواردة"
                     value={recvQty[i.id] ?? ""}
-                    onChange={(e) =>
-                      setRecvQty((p) => ({ ...p, [i.id]: e.target.value }))
-                    }
+                    onChange={(e) => setRecvQty((p) => ({ ...p, [i.id]: e.target.value }))}
                     className="h-9 w-32 bg-background text-end"
                   />
                   <Button
@@ -377,9 +361,7 @@ function InventoryScreen() {
           <TabsContent value="shift" className="space-y-3 pt-4">
             <section className="rounded-2xl border border-border bg-card p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-extrabold">
-                  الباقي في نهاية الوردية / اليوم
-                </h2>
+                <h2 className="text-base font-extrabold">الباقي في نهاية الوردية / اليوم</h2>
                 <Button
                   variant="outline"
                   className="font-extrabold"
@@ -408,9 +390,7 @@ function InventoryScreen() {
                         <td className="p-2 font-bold">{r.ing.name}</td>
                         <td className="p-2">{fmtQty(r.opening, r.ing.unit)}</td>
                         <td className="p-2 text-primary">{fmtQty(r.inQty, r.ing.unit)}</td>
-                        <td className="p-2 text-destructive">
-                          {fmtQty(r.outQty, r.ing.unit)}
-                        </td>
+                        <td className="p-2 text-destructive">{fmtQty(r.outQty, r.ing.unit)}</td>
                         <td
                           className={cn(
                             "p-2 font-extrabold",
@@ -451,16 +431,12 @@ function InventoryScreen() {
                       {STOCK_REASONS[m.reason]}
                       {m.orderNo ? ` • فاتورة #${m.orderNo}` : ""}
                     </span>
-                    <span className="ms-auto text-xs text-muted-foreground">
-                      {fmtTime(m.at)}
-                    </span>
+                    <span className="ms-auto text-xs text-muted-foreground">{fmtTime(m.at)}</span>
                   </div>
                 );
               })}
               {!state.stockMoves.length && (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  لا توجد حركات بعد.
-                </p>
+                <p className="py-6 text-center text-sm text-muted-foreground">لا توجد حركات بعد.</p>
               )}
             </section>
           </TabsContent>

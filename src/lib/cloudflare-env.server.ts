@@ -12,14 +12,12 @@ export function setCloudflareEnv(env: unknown): void {
 export function getDB(): D1Database {
   if (!_env) {
     throw new Error(
-      "Cloudflare env not initialized — setCloudflareEnv() must be called first from server.ts"
+      "Cloudflare env not initialized — setCloudflareEnv() must be called first from server.ts",
     );
   }
   const db = _env["DB"] as D1Database | undefined;
   if (!db) {
-    throw new Error(
-      "D1 binding 'DB' not found. Verify [[d1_databases]] in wrangler.toml."
-    );
+    throw new Error("D1 binding 'DB' not found. Verify [[d1_databases]] in wrangler.toml.");
   }
   return db;
 }

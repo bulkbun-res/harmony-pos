@@ -11,13 +11,13 @@ import {
   Pencil,
   Plus,
   Printer,
-
   RefreshCw,
   UploadCloud,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AuthGuard } from "@/components/AuthGuard";
 import { PosHeader } from "@/components/pos/PosHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,13 @@ import {
   type OnlineOrderRow,
 } from "@/lib/online-schemas";
 import { printReceipt } from "@/lib/print-receipt";
-import { EGP, PAYMENT_METHODS, type CartLine, type Order, type PaymentMethod } from "@/lib/pos-types";
+import {
+  EGP,
+  PAYMENT_METHODS,
+  type CartLine,
+  type Order,
+  type PaymentMethod,
+} from "@/lib/pos-types";
 
 import { cn } from "@/lib/utils";
 
@@ -60,7 +66,11 @@ export const Route = createFileRoute("/online")({
       },
     ],
   }),
-  component: OnlineScreen,
+  component: () => (
+    <AuthGuard>
+      <OnlineScreen />
+    </AuthGuard>
+  ),
 });
 
 const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -114,7 +124,6 @@ function OnlineScreen() {
   const archived = orders.filter(
     (o) => o.status === "rejected" || (o.status === "ready" && o.paid_at),
   );
-
 
   /** يحوّل الطلب لفاتورة POS ويخصم الاستهلاك من المخزن */
   const prepare = async (o: OnlineOrderRow, useProposed = false) => {
@@ -197,11 +206,12 @@ function OnlineScreen() {
       total: t.total,
       payments: [{ method, amount: t.total, at: Date.now() }],
       note:
-        existing?.note ??
-        `طلب أونلاين #${o.order_no} — ${o.customer_name} — ${o.customer_phone}`,
+        existing?.note ?? `طلب أونلاين #${o.order_no} — ${o.customer_name} — ${o.customer_phone}`,
       ...(existing?.orderNo ? { orderNo: existing.orderNo } : {}),
     } as Parameters<typeof saveOrder>[0]);
-    toast.success(`تم تأكيد الدفع (${ONLINE_PAYMENT_LABEL[method as OnlinePaymentMethod]}) — ${EGP(t.total)}`);
+    toast.success(
+      `تم تأكيد الدفع (${ONLINE_PAYMENT_LABEL[method as OnlinePaymentMethod]}) — ${EGP(t.total)}`,
+    );
     printReceipt(saved, {
       title: `طلب أونلاين #${o.order_no}`,
       customer: o.customer_name,
@@ -245,14 +255,15 @@ function OnlineScreen() {
             ]
           : [],
       } as Order);
-    if (!printReceipt(order, {
-      title: `طلب أونلاين #${o.order_no}`,
-      customer: o.customer_name,
-      phone: o.customer_phone,
-    }))
+    if (
+      !printReceipt(order, {
+        title: `طلب أونلاين #${o.order_no}`,
+        customer: o.customer_name,
+        phone: o.customer_phone,
+      })
+    )
       toast.error("اسمح بالنوافذ المنبثقة للطباعة");
   };
-
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
@@ -265,7 +276,12 @@ function OnlineScreen() {
             <span className="rounded-lg bg-primary/15 px-2 py-1 text-xs font-extrabold text-primary">
               {active.length} طلب نشط
             </span>
-            <Button variant="secondary" size="sm" className="ms-auto" onClick={() => void refresh()}>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="ms-auto"
+              onClick={() => void refresh()}
+            >
               <RefreshCw className="h-4 w-4" /> تحديث
             </Button>
           </div>
@@ -413,7 +429,6 @@ function OnlineScreen() {
                       <Ban className="h-4 w-4" /> رفض
                     </Button>
                   )}
-
                 </div>
               </article>
             );
@@ -451,7 +466,6 @@ function OnlineScreen() {
                       </Button>
                     )}
                   </div>
-
                 ))}
               </div>
             </section>
@@ -536,7 +550,9 @@ function EditOrderDialog({
 
   const bump = (itemId: string, delta: number) =>
     setLines((prev) =>
-      prev.map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + delta } : l)).filter((l) => l.qty > 0),
+      prev
+        .map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + delta } : l))
+        .filter((l) => l.qty > 0),
     );
 
   return (
@@ -550,11 +566,21 @@ function EditOrderDialog({
           {lines.map((l) => (
             <div key={l.itemId} className="flex items-center gap-2 rounded-xl bg-secondary/50 p-2">
               <span className="min-w-0 flex-1 truncate text-sm font-bold">{l.name}</span>
-              <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => bump(l.itemId, -1)}>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8"
+                onClick={() => bump(l.itemId, -1)}
+              >
                 <Minus className="h-4 w-4" />
               </Button>
               <span className="w-6 text-center font-extrabold">{l.qty}</span>
-              <Button size="icon" variant="secondary" className="h-8 w-8" onClick={() => bump(l.itemId, 1)}>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8"
+                onClick={() => bump(l.itemId, 1)}
+              >
                 <Plus className="h-4 w-4" />
               </Button>
               <span className="w-20 text-end text-sm font-bold text-primary">

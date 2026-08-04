@@ -1,13 +1,6 @@
 export type TileShape = "square" | "circle";
 
-export type TileColor =
-  | "leaf"
-  | "lime"
-  | "amber"
-  | "tomato"
-  | "cheese"
-  | "onion"
-  | "slate";
+export type TileColor = "leaf" | "lime" | "amber" | "tomato" | "cheese" | "onion" | "slate";
 
 export interface Group {
   id: string;

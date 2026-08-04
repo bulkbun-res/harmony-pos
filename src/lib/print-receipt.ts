@@ -23,9 +23,7 @@ export interface ReceiptMeta {
 export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
   const lines = order.lines
     .map((l) => {
-      const mods = l.modifiers
-        .map((m) => `<div class="mod">+ ${esc(m.name)}</div>`)
-        .join("");
+      const mods = l.modifiers.map((m) => `<div class="mod">+ ${esc(m.name)}</div>`).join("");
       const price = (l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) * l.qty;
       return `<tr><td>${l.qty} × ${esc(l.name)}${mods}</td><td class="num">${EGP(price)}</td></tr>`;
     })
@@ -72,7 +70,7 @@ export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
   ${payments ? `<div class="hr"></div><table>${payments}</table>` : ""}
   ${order.status === "cancelled" ? `<div class="foot"><b>** فاتورة ملغاة **</b></div>` : ""}
   <div class="foot">${esc(meta.footer ?? "شكرًا لزيارتك — Bulk Bun Healthy Sandwiches")}</div>
-  <script>window.onload=function(){window.focus();window.print();setTimeout(function(){window.close()},400)}<\/script>
+  <script>window.onload=function(){window.focus();window.print();setTimeout(function(){window.close()},400)}</script>
 </body></html>`;
 
   const w = window.open("", "_blank", "width=380,height=640");

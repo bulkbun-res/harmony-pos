@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, Printer, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { AuthGuard } from "@/components/AuthGuard";
 import { PosHeader } from "@/components/pos/PosHeader";
 import { ItemTile } from "@/components/pos/ItemTile";
 import { Button } from "@/components/ui/button";
@@ -32,12 +33,19 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "شاشة الكاشير | Bulk Bun POS" },
-      { name: "description", content: "شاشة البيع السريعة: اختر الأصناف وأنشئ الفاتورة وحصّل الدفع." },
+      {
+        name: "description",
+        content: "شاشة البيع السريعة: اختر الأصناف وأنشئ الفاتورة وحصّل الدفع.",
+      },
       { property: "og:title", content: "شاشة الكاشير | Bulk Bun POS" },
       { property: "og:description", content: "شاشة البيع السريعة لمطعم Bulk Bun." },
     ],
   }),
-  component: PosScreen,
+  component: () => (
+    <AuthGuard>
+      <PosScreen />
+    </AuthGuard>
+  ),
 });
 
 function PosScreen() {
@@ -81,15 +89,21 @@ function PosScreen() {
   }, [state.items, activeGroup, search]);
 
   const addLine = (item: Item, mods: Item["modifiers"] = []) => {
-    const key = mods.map((m) => m.id).sort().join("|");
+    const key = mods
+      .map((m) => m.id)
+      .sort()
+      .join("|");
     setLines((prev) => {
       const existing = prev.find(
-        (l) => l.itemId === item.id && (l.modifiers || []).map((m) => m.id).sort().join("|") === key,
+        (l) =>
+          l.itemId === item.id &&
+          (l.modifiers || [])
+            .map((m) => m.id)
+            .sort()
+            .join("|") === key,
       );
       if (existing) {
-        return prev.map((l) =>
-          l.lineId === existing.lineId ? { ...l, qty: l.qty + 1 } : l,
-        );
+        return prev.map((l) => (l.lineId === existing.lineId ? { ...l, qty: l.qty + 1 } : l));
       }
       return [
         ...prev,
@@ -224,7 +238,6 @@ function PosScreen() {
             )}
           </div>
         </main>
-
 
         {/* Invoice */}
         <aside className="flex h-full min-h-0 w-[38%] min-w-[11rem] max-w-[24rem] shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card sm:w-[34%] lg:w-[22rem] xl:w-[24rem]">
@@ -467,8 +480,6 @@ function useAutoFitGrid(ref: React.RefObject<HTMLDivElement | null>, items: Item
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [box.w, box.h, key, maxW]);
 }
-
-
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
