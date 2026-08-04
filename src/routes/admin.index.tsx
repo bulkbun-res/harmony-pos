@@ -17,6 +17,7 @@ import {
   UserPlus,
   Users,
   Wallet,
+  Key,
 } from "lucide-react";
 import {
   Bar,
@@ -46,6 +47,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   createEmployeeFn,
   createExpenseFn,
