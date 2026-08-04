@@ -1,5 +1,5 @@
 const CACHE_NAME = "bulkbun-pwa-v1";
-const ASSETS = ["/", "/favicon.png", "/manifest.json"];
+const ASSETS = ["/", "/favicon.png", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -29,6 +29,9 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
 
   const url = new URL(e.request.url);
+  // تجاهل أي بروتوكول غير http أو https لمنع أخطاء الإضافات
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+
   // لا تقم بتخزين طلبات السيرفر الداخلية الخاصة بـ TanStack Start / Vinxi
   if (url.pathname.includes("/_server/") || url.pathname.includes("/api/")) return;
 

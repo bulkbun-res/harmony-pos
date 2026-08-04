@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   BarChart2,
   Calendar,
+  Clock,
   CreditCard,
   DollarSign,
   History,
