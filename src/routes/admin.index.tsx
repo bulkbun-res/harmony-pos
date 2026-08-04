@@ -1002,13 +1002,13 @@ function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs min-w-[28rem]">
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-xs">
                       <thead>
                         <tr className="text-muted-foreground border-b border-white/5">
                           <th className="py-2 text-start">الاسم</th>
-                          <th className="py-2 text-start">الوظيفة</th>
-                          <th className="py-2 text-start">نظام الراتب</th>
+                          <th className="py-2 text-start hidden sm:table-cell">الوظيفة</th>
+                          <th className="py-2 text-start">الراتب / اليومية</th>
                           <th className="py-2 text-start">الحضور ({attDate.slice(5)})</th>
                           <th className="py-2 text-end">إجراء</th>
                         </tr>
@@ -1018,8 +1018,11 @@ function AdminDashboard() {
                           const att = attendance.find((a) => a.employee_id === emp.id);
                           return (
                             <tr key={emp.id} className="border-b border-white/5">
-                              <td className="py-3 font-bold">{emp.name}</td>
-                              <td className="py-3">{emp.role}</td>
+                              <td className="py-3 font-bold">
+                                <div>{emp.name}</div>
+                                <div className="text-[10px] text-muted-foreground font-normal sm:hidden mt-0.5">{emp.role}</div>
+                              </td>
+                              <td className="py-3 hidden sm:table-cell">{emp.role}</td>
                               <td className="py-3 font-bold text-emerald-500">
                                 {emp.base_salary} ج.م /{" "}
                                 {emp.salary_type === "monthly"
@@ -1371,12 +1374,12 @@ function AdminDashboard() {
                     <UserCheck className="h-4.5 w-4.5" /> مستخدمين النظام وصلاحيات الوصول
                   </h2>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs min-w-[28rem]">
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-xs">
                       <thead>
                         <tr className="text-muted-foreground border-b border-white/5">
                           <th className="py-2 text-start">الاسم</th>
-                          <th className="py-2 text-start">اسم المستخدم</th>
+                          <th className="py-2 text-start hidden sm:table-cell">اسم المستخدم</th>
                           <th className="py-2 text-start">الصلاحية</th>
                           <th className="py-2 text-start">حالة الحساب</th>
                           <th className="py-2 text-end">إجراء</th>
@@ -1385,8 +1388,11 @@ function AdminDashboard() {
                       <tbody>
                         {usersList.map((u) => (
                           <tr key={u.id} className="border-b border-white/5">
-                            <td className="py-3 font-bold">{u.name}</td>
-                            <td className="py-3 font-bold text-primary">@{u.username}</td>
+                            <td className="py-3 font-bold">
+                              <div>{u.name}</div>
+                              <div className="text-[10px] text-primary font-bold sm:hidden mt-0.5">@{u.username}</div>
+                            </td>
+                            <td className="py-3 font-bold text-primary hidden sm:table-cell">@{u.username}</td>
                             <td className="py-3">
                               <span
                                 className={cn(
