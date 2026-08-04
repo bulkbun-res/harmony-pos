@@ -14,7 +14,6 @@ import { useAuth } from "@/lib/use-auth";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/admin", label: "لوحة المدير", icon: ShieldAlert, adminOnly: true },
   { to: "/", label: "الكاشير", icon: ShoppingBag, adminOnly: false },
   { to: "/online", label: "طلبات المنيو", icon: QrCode, adminOnly: false },
   { to: "/orders", label: "الفواتير", icon: History, adminOnly: false },

@@ -64,7 +64,7 @@ import { useAuth } from "@/lib/use-auth";
 import { EGP } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/admin")({
+export const Route = createFileRoute("/admin/")({
   head: () => ({
     meta: [
       { title: "لوحة الإدارة | Bulk Bun POS" },
@@ -389,7 +389,6 @@ function AdminDashboard() {
       toast.error(error.message || "فشل الحذف");
     }
   };
-
   const handleDeleteEmployee = async (id: string) => {
     if (!confirm("هل أنت متأكد من حذف هذا الموظف؟")) return;
     try {
@@ -405,7 +404,7 @@ function AdminDashboard() {
   const handleLogout = async () => {
     await logout();
     toast.success("تم تسجيل الخروج");
-    void navigate({ to: "/login" });
+    void navigate({ to: "/admin/login" });
   };
 
   return (
@@ -425,14 +424,6 @@ function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 text-xs rounded-xl"
-            onClick={() => void navigate({ to: "/" })}
-          >
-            شاشة الكاشير
-          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -486,7 +477,7 @@ function AdminDashboard() {
             {/* 1. ANALYTICS TAB */}
             <TabsContent value="analytics" className="space-y-6 mt-4">
               {/* بطاقات المؤشرات اللحظية */}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
                 <MetricCard
                   title="مبيعات اليوم"
                   value={EGP(metrics?.today?.sales ?? 0)}

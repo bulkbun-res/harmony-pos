@@ -14,7 +14,8 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        void navigate({ to: "/login" });
+        const isAdminPath = typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
+        void navigate({ to: isAdminPath ? "/admin/login" : "/login" });
       } else if (allowedRoles && !allowedRoles.includes(user.role)) {
         if (user.role === "admin") {
           void navigate({ to: "/admin" });

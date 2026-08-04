@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as LayoutRouteImport } from './routes/layout'
 import { Route as LoginRouteImport } from './routes/login'
@@ -18,15 +17,12 @@ import { Route as MenuRouteImport } from './routes/menu'
 import { Route as OnlineRouteImport } from './routes/online'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryRoute = InventoryRouteImport.update({
@@ -64,10 +60,19 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/inventory': typeof InventoryRoute
   '/layout': typeof LayoutRoute
   '/login': typeof LoginRoute
@@ -75,10 +80,11 @@ export interface FileRoutesByFullPath {
   '/online': typeof OnlineRoute
   '/orders': typeof OrdersRoute
   '/settings': typeof SettingsRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/inventory': typeof InventoryRoute
   '/layout': typeof LayoutRoute
   '/login': typeof LoginRoute
@@ -86,11 +92,12 @@ export interface FileRoutesByTo {
   '/online': typeof OnlineRoute
   '/orders': typeof OrdersRoute
   '/settings': typeof SettingsRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/inventory': typeof InventoryRoute
   '/layout': typeof LayoutRoute
   '/login': typeof LoginRoute
@@ -98,12 +105,13 @@ export interface FileRoutesById {
   '/online': typeof OnlineRoute
   '/orders': typeof OrdersRoute
   '/settings': typeof SettingsRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/inventory'
     | '/layout'
     | '/login'
@@ -111,10 +119,11 @@ export interface FileRouteTypes {
     | '/online'
     | '/orders'
     | '/settings'
+    | '/admin/login'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/inventory'
     | '/layout'
     | '/login'
@@ -122,10 +131,11 @@ export interface FileRouteTypes {
     | '/online'
     | '/orders'
     | '/settings'
+    | '/admin/login'
+    | '/admin'
   id:
     | '__root__'
     | '/'
-    | '/admin'
     | '/inventory'
     | '/layout'
     | '/login'
@@ -133,11 +143,12 @@ export interface FileRouteTypes {
     | '/online'
     | '/orders'
     | '/settings'
+    | '/admin/login'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   InventoryRoute: typeof InventoryRoute
   LayoutRoute: typeof LayoutRoute
   LoginRoute: typeof LoginRoute
@@ -145,6 +156,8 @@ export interface RootRouteChildren {
   OnlineRoute: typeof OnlineRoute
   OrdersRoute: typeof OrdersRoute
   SettingsRoute: typeof SettingsRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -154,13 +167,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory': {
@@ -212,12 +218,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   InventoryRoute: InventoryRoute,
   LayoutRoute: LayoutRoute,
   LoginRoute: LoginRoute,
@@ -225,6 +244,8 @@ const rootRouteChildren: RootRouteChildren = {
   OnlineRoute: OnlineRoute,
   OrdersRoute: OrdersRoute,
   SettingsRoute: SettingsRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

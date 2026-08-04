@@ -8,18 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/use-auth";
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/admin/login")({
   head: () => ({
     meta: [
-      { title: "تسجيل الدخول | Bulk Bun POS" },
-      { name: "description", content: "سجل الدخول للوصول لنظام الكاشير أو لوحة الإدارة." },
+      { title: "تسجيل دخول لوحة المدير | Bulk Bun POS" },
+      { name: "description", content: "سجل الدخول كمدير للوصول للوحة المتابعة والتقارير المالية." },
     ],
   }),
-  component: LoginPage,
+  component: AdminLoginPage,
 });
 
-function LoginPage() {
-  const { user, loading, login } = useAuth();
+function AdminLoginPage() {
+  const { user, loading, login, logout } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -30,10 +30,11 @@ function LoginPage() {
       if (user.role === "admin") {
         void navigate({ to: "/admin" });
       } else {
-        void navigate({ to: "/" });
+        toast.error("غير مصرح لك بدخول لوحة الإدارة");
+        void logout();
       }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, logout]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +46,12 @@ function LoginPage() {
     setSubmitting(true);
     try {
       const u = await login(username, password);
-      toast.success(`أهلاً بك يا ${u.name}`);
       if (u.role === "admin") {
+        toast.success(`أهلاً بك يا ${u.name}`);
         void navigate({ to: "/admin" });
       } else {
-        void navigate({ to: "/" });
+        toast.error("هذا الحساب ليس له صلاحيات الإدارة");
+        await logout();
       }
     } catch (err: unknown) {
       const error = err as Error;
@@ -71,12 +73,12 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#070e0b] px-4 relative overflow-hidden">
-      {/* خلفية جمالية متموجة */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div className="flex min-h-screen items-center justify-center bg-[#050b09] px-4 relative overflow-hidden">
+      {/* خلفية جمالية بلون أخضر زمردي عميق للإدارة */}
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[130px] pointer-events-none"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[130px] pointer-events-none"></div>
 
-      <div className="w-full max-w-md space-y-6 rounded-3xl border border-white/5 bg-card/45 p-6 backdrop-blur-xl shadow-2xl relative z-10">
+      <div className="w-full max-w-md space-y-6 rounded-3xl border border-white/5 bg-[#0b1411]/55 p-6 sm:p-8 backdrop-blur-xl shadow-2xl relative z-10">
         <div className="text-center space-y-3">
           <img
             src={logo}
@@ -84,22 +86,22 @@ function LoginPage() {
             className="h-20 w-20 rounded-2xl object-cover ring-4 ring-primary/45 mx-auto shadow-lg"
           />
           <div>
-            <h1 className="text-2xl font-black tracking-tight brand-gradient-text">BULK BUN</h1>
-            <p className="text-xs text-muted-foreground mt-1">نظام الإدارة ونقاط البيع المتكامل</p>
+            <h1 className="text-2xl font-black tracking-tight brand-gradient-text">لوحة المدير</h1>
+            <p className="text-xs text-muted-foreground mt-1">سجل الدخول للتحليلات وإدارة الحسابات</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5 relative">
-            <label className="text-xs font-bold text-muted-foreground mr-1">اسم المستخدم</label>
+            <label className="text-xs font-bold text-muted-foreground mr-1">اسم مستخدم المدير</label>
             <div className="relative">
               <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="أدخل اسم المستخدم"
+                placeholder="اسم المستخدم"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="h-12 pr-10 bg-background/50 border-white/10 focus:border-primary/50 rounded-xl"
+                className="h-12 pr-10 bg-background/50 border-white/10 focus:border-primary/50 rounded-xl text-sm"
                 disabled={submitting}
               />
             </div>
@@ -111,10 +113,10 @@ function LoginPage() {
               <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="password"
-                placeholder="أدخل كلمة المرور"
+                placeholder="كلمة المرور"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-12 pr-10 bg-background/50 border-white/10 focus:border-primary/50 rounded-xl"
+                className="h-12 pr-10 bg-background/50 border-white/10 focus:border-primary/50 rounded-xl text-sm"
                 disabled={submitting}
               />
             </div>
@@ -125,16 +127,16 @@ function LoginPage() {
             className="w-full h-12 text-base font-extrabold mt-6 bg-primary hover:bg-primary/95 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl transition-all"
             disabled={submitting}
           >
-            {submitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
+            {submitting ? "جاري الدخول لوحة المدير..." : "دخول لوحة المدير"}
           </Button>
         </form>
 
         <div className="text-center pt-2">
           <button
-            onClick={() => void navigate({ to: "/admin/login" })}
+            onClick={() => void navigate({ to: "/login" })}
             className="text-xs text-muted-foreground hover:text-primary transition-colors font-bold"
           >
-            تسجيل الدخول كمدير للنظام
+            الذهاب لشاشة كاشير نقطة البيع
           </button>
         </div>
       </div>
