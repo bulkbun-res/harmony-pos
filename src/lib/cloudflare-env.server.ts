@@ -11,7 +11,7 @@ export function setCloudflareEnv(env: unknown): void {
 
 /** يُرجع D1 database binding */
 export function getDB(): D1Database {
-  const env = globalObj[GLOBAL_ENV_KEY];
+  const env = (globalThis as any).__env__ || globalObj[GLOBAL_ENV_KEY];
   if (!env) {
     throw new Error(
       "Cloudflare env not initialized — setCloudflareEnv() must be called first from server.ts",
