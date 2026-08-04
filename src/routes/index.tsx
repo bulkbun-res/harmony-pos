@@ -16,6 +16,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { usePos } from "@/lib/pos-store";
+import { useAuth } from "@/lib/use-auth";
+import { useServerFn } from "@tanstack/react-start";
+import { openShiftFn, closeShiftFn, getCurrentShiftFn } from "@/lib/shift.functions";
 import {
   EGP,
   PAYMENT_METHODS,
@@ -49,9 +52,83 @@ export const Route = createFileRoute("/")({
 });
 
 function PosScreen() {
-  const { state, saveOrder } = usePos();
+  const { state, saveOrder, setActiveShift } = usePos();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const { order: editId } = Route.useSearch();
+
+  // دوال وخطافات الوردية
+  const fetchCurrentShift = useServerFn(getCurrentShiftFn);
+  const startShiftOnServer = useServerFn(openShiftFn);
+  const closeShiftOnServer = useServerFn(closeShiftFn);
+
+  const [shiftLoading, setShiftLoading] = useState(true);
+  const [openingCashInput, setOpeningCashInput] = useState("");
+  const [openShiftSubmitting, setOpenShiftSubmitting] = useState(false);
+
+  const [closeShiftOpen, setCloseShiftOpen] = useState(false);
+  const [actualCashInput, setActualCashInput] = useState("");
+  const [closeNotesInput, setCloseNotesInput] = useState("");
+  const [closeShiftSubmitting, setCloseShiftSubmitting] = useState(false);
+
+  useEffect(() => {
+    const checkShift = async () => {
+      try {
+        const active = await fetchCurrentShift({});
+        setActiveShift(active);
+      } catch (err) {
+        console.error("Failed to check shift:", err);
+      } finally {
+        setShiftLoading(false);
+      }
+    };
+    void checkShift();
+  }, [fetchCurrentShift, setActiveShift]);
+
+  const handleOpenShift = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cash = parseFloat(openingCashInput);
+    if (isNaN(cash) || cash < 0) {
+      toast.error("يرجى إدخال مبلغ افتتاحي صحيح");
+      return;
+    }
+    setOpenShiftSubmitting(true);
+    try {
+      await startShiftOnServer({ data: { openingCash: cash } });
+      toast.success("تم بدء الوردية وتكلفة الدرج بنجاح!");
+      const active = await fetchCurrentShift({});
+      setActiveShift(active);
+    } catch (err: any) {
+      toast.error(err.message || "فشل فتح الوردية");
+    } finally {
+      setOpenShiftSubmitting(false);
+    }
+  };
+
+  const handleCloseShift = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const actual = parseFloat(actualCashInput);
+    if (isNaN(actual) || actual < 0) {
+      toast.error("يرجى إدخال المبلغ الفعلي في الدرج");
+      return;
+    }
+    setCloseShiftSubmitting(true);
+    try {
+      const res = await closeShiftOnServer({
+        data: { actualCash: actual, notes: closeNotesInput },
+      });
+      toast.success(`تم تقفيل الوردية بنجاح! فارق العجز/الزيادة: ${EGP(res.difference)}`);
+      setCloseShiftOpen(false);
+      setActiveShift(null);
+      await logout();
+      navigate({ to: "/login" });
+    } catch (err: any) {
+      toast.error(err.message || "فشل تقفيل الوردية");
+    } finally {
+      setCloseShiftSubmitting(false);
+    }
+  };
+
   const groups = [...state.groups].sort((a, b) => a.order - b.order);
   const [activeGroup, setActiveGroup] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -183,9 +260,130 @@ function PosScreen() {
   const gridRef = useRef<HTMLDivElement>(null);
   const fit = useAutoFitGrid(gridRef, items);
 
+  const shiftOrders = useMemo(() => {
+    if (!state.activeShift) return [];
+    return state.orders.filter(
+      (o) => o.shiftId === state.activeShift?.id && o.status === "paid"
+    );
+  }, [state.orders, state.activeShift]);
+
+  const shiftTotals = useMemo(() => {
+    const opening = state.activeShift?.opening_cash ?? 0;
+    const cash = shiftOrders
+      .filter((o) => o.payments[0]?.method === "cash")
+      .reduce((sum, o) => sum + o.total, 0);
+    const visa = shiftOrders
+      .filter((o) => o.payments[0]?.method === "visa")
+      .reduce((sum, o) => sum + o.total, 0);
+    const instapay = shiftOrders
+      .filter((o) => o.payments[0]?.method === "instapay")
+      .reduce((sum, o) => sum + o.total, 0);
+    const vodafone = shiftOrders
+      .filter((o) => o.payments[0]?.method === "vodafone")
+      .reduce((sum, o) => sum + o.total, 0);
+
+    return {
+      opening,
+      cash,
+      visa,
+      instapay,
+      vodafone,
+      expectedInDrawer: opening + cash,
+      totalSales: cash + visa + instapay + vodafone,
+    };
+  }, [shiftOrders, state.activeShift]);
+
+  if (shiftLoading) {
+    return (
+      <div className="flex h-[100dvh] w-full flex-col items-center justify-center bg-[#050908] text-white">
+        <div className="h-10 w-10 border-4 border-primary border-t-transparent animate-spin rounded-full mb-4"></div>
+        <p className="text-sm font-bold text-muted-foreground">جاري التحقق من الوردية والدرج...</p>
+      </div>
+    );
+  }
+
+  if (!state.activeShift) {
+    return (
+      <div className="flex h-[100dvh] w-full flex-col bg-[#050908] items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+        <div className="w-full max-w-md bg-[#0b1411]/90 border border-white/5 p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl text-center space-y-6 relative z-10">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center text-3xl select-none">
+            💼
+          </div>
+          
+          <div className="space-y-1.5 border-b border-white/5 pb-4">
+            <h1 className="text-xl font-black text-foreground">بدء وردية جديدة</h1>
+            <p className="text-xs text-muted-foreground">
+              أهلاً بك يا <span className="font-extrabold text-primary">{user?.name || "كاشير"}</span>. يرجى إدخال الرصيد الافتتاحي (مبلغ الدرج) لتتمكن من العمل والبيع.
+            </p>
+          </div>
+
+          <form onSubmit={handleOpenShift} className="space-y-4">
+            <div className="space-y-2 text-start">
+              <label className="text-xs font-bold text-muted-foreground ps-1">المبلغ الافتتاحي لدرج النقدية (EGP)</label>
+              <Input
+                type="number"
+                required
+                value={openingCashInput}
+                onChange={(e) => setOpeningCashInput(e.target.value)}
+                placeholder="مثال: 500"
+                className="bg-[#050908] border-white/5 rounded-2xl h-12 text-center text-lg font-black text-primary placeholder:text-muted-foreground/30 focus-visible:ring-primary/30"
+                autoFocus
+              />
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={openShiftSubmitting}
+              className="w-full h-12 rounded-2xl font-black text-sm tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2"
+            >
+              {openShiftSubmitting ? (
+                <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full"></div>
+              ) : (
+                "بدء الوردية والتشغيل 🚀"
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={async () => {
+                await logout();
+                navigate({ to: "/login" });
+              }}
+              className="w-full text-xs text-muted-foreground hover:text-foreground h-10 font-bold"
+            >
+              تسجيل الخروج والرجوع
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <PosHeader />
+      <PosHeader 
+        right={
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex flex-col text-end text-[10px] leading-tight pe-3 border-e border-white/10">
+              <span className="font-extrabold text-foreground">{user?.name}</span>
+              <span className="text-muted-foreground text-[9px] mt-0.5">
+                الوردية مفتوحة منذ {new Date(state.activeShift.opened_at).toLocaleTimeString("ar-EG", { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setCloseShiftOpen(true)}
+              className="h-9 px-3.5 text-xs font-black rounded-xl border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
+            >
+              🔒 إقفال الوردية
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex min-h-0 flex-1 flex-row gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4">
         {/* Items area */}
@@ -369,6 +567,107 @@ function PosScreen() {
         onOpenChange={setPayOpen}
         onConfirm={completeOrder}
       />
+
+      {/* نافذة تقفيل الوردية وجرد الدرج */}
+      <Dialog open={closeShiftOpen} onOpenChange={setCloseShiftOpen}>
+        <DialogContent className="max-w-md bg-[#0b1411] border-white/5 rounded-3xl text-right p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-destructive flex items-center gap-2 justify-end">
+              تقفيل الوردية وجرد النقدية 🔒
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 my-3 text-xs leading-relaxed">
+            {/* ملخص المبيعات للوردية */}
+            <div className="bg-[#050908]/60 border border-white/5 rounded-2xl p-4 space-y-2.5">
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span className="font-bold">{EGP(shiftTotals.opening)}</span>
+                <span>المبلغ الافتتاحي للدرج:</span>
+              </div>
+              <div className="flex justify-between items-center text-muted-foreground border-b border-white/5 pb-2">
+                <span className="font-bold text-emerald-500">+{EGP(shiftTotals.cash)}</span>
+                <span>مبيعات النقدية (الكاش):</span>
+              </div>
+              <div className="flex justify-between items-center text-foreground font-black text-sm pt-1">
+                <span className="text-primary">{EGP(shiftTotals.expectedInDrawer)}</span>
+                <span>المبلغ المتوقع في الدرج:</span>
+              </div>
+            </div>
+
+            {/* تفاصيل المبيعات الإلكترونية */}
+            <div className="bg-[#050908]/30 border border-white/5 rounded-2xl p-4 space-y-2 text-muted-foreground">
+              <p className="text-[10px] font-bold text-primary mb-1 border-b border-white/5 pb-1">مبيعات الدفع الإلكتروني (فيزا/محافظ)</p>
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="font-bold">{EGP(shiftTotals.visa)}</span>
+                <span>فيزا / كارت:</span>
+              </div>
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="font-bold">{EGP(shiftTotals.instapay)}</span>
+                <span>انستا باي:</span>
+              </div>
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="font-bold">{EGP(shiftTotals.vodafone)}</span>
+                <span>فودافون كاش:</span>
+              </div>
+              <div className="flex justify-between items-center font-bold text-xs border-t border-white/5 pt-1.5 mt-1 text-foreground">
+                <span>{EGP(shiftTotals.totalSales)}</span>
+                <span>إجمالي مبيعات الوردية:</span>
+              </div>
+            </div>
+
+            {/* مدخلات الكاشير */}
+            <form onSubmit={handleCloseShift} className="space-y-4">
+              <div className="space-y-2 text-start">
+                <label className="text-[10px] font-bold text-muted-foreground pr-1 block text-right">
+                  المبلغ الفعلي الموجود بالدرج حالياً (EGP)
+                </label>
+                <Input
+                  type="number"
+                  required
+                  value={actualCashInput}
+                  onChange={(e) => setActualCashInput(e.target.value)}
+                  placeholder="أدخل المبلغ بعد عدّ النقدية"
+                  className="bg-[#050908] border-white/5 rounded-2xl h-11 text-center font-black text-sm text-primary placeholder:text-muted-foreground/30 focus-visible:ring-primary/30"
+                />
+              </div>
+
+              <div className="space-y-2 text-start">
+                <label className="text-[10px] font-bold text-muted-foreground pr-1 block text-right">
+                  ملاحظات التقفيل (اختياري)
+                </label>
+                <Input
+                  value={closeNotesInput}
+                  onChange={(e) => setCloseNotesInput(e.target.value)}
+                  placeholder="عجز بسيط، فئات نقدية تالفة، إلخ"
+                  className="bg-[#050908] border-white/5 rounded-2xl h-11 text-right text-xs"
+                />
+              </div>
+
+              <DialogFooter className="mt-6 flex flex-row gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setCloseShiftOpen(false)}
+                  className="h-11 rounded-2xl font-bold text-xs"
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={closeShiftSubmitting}
+                  className="h-11 rounded-2xl font-black text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 flex-1"
+                >
+                  {closeShiftSubmitting ? (
+                    <div className="h-4 w-4 border-2 border-destructive-foreground border-t-transparent animate-spin rounded-full mx-auto"></div>
+                  ) : (
+                    "تأكيد تقفيل الوردية وتسجيل الخروج"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

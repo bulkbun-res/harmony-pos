@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS sales_orders (
   total REAL NOT NULL,
   payment_method TEXT NOT NULL, -- cash, vodafone, instapay, visa
   status TEXT NOT NULL,         -- paid, cancelled
+  shift_id TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -127,5 +128,21 @@ CREATE TABLE IF NOT EXISTS inventory_logs (
   reason TEXT NOT NULL,         -- receive, waste, sale, adjustment
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- 9. الورديات وتقفيل الكاشير
+CREATE TABLE IF NOT EXISTS shifts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  opened_at TEXT NOT NULL,
+  closed_at TEXT,
+  opening_cash REAL NOT NULL DEFAULT 0,
+  expected_cash REAL NOT NULL DEFAULT 0,
+  actual_cash REAL DEFAULT 0,
+  difference REAL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'open', -- open, closed
+  notes TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
 

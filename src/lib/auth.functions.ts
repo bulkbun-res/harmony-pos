@@ -88,3 +88,54 @@ export const toggleUserFn = createServerFn({ method: "POST" })
       .run();
     return { ok: true };
   });
+
+export const deleteUserFn = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    await assertAdmin();
+    const db = await getD1();
+    
+    const user = await db
+      .prepare("SELECT username FROM users WHERE id = ?")
+      .bind(data.id)
+      .first<{ username: string }>();
+      
+    if (user?.username === "admin") {
+      throw new Error("لا يمكن حذف حساب المدير الرئيسي");
+    }
+    
+    await db.prepare("DELETE FROM users WHERE id = ?").bind(data.id).run();
+    return { ok: true };
+  });
+
+export const updateUserPasswordFn = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      password: z.string().min(6, "كلمة المرور يجب ألا تقل عن 6 أحرف"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await assertAdmin();
+    const db = await getD1();
+    
+    const user = await db
+      .prepare("SELECT username FROM users WHERE id = ?")
+      .bind(data.id)
+      .first<{ username: string }>();
+      
+    if (!user) throw new Error("المستخدم غير موجود");
+    
+    const hash = await hashPassword(data.password, user.username);
+    await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(hash, data.id).run();
+    return { ok: true };
+  });
+
+export const deleteUserShiftsFn = createServerFn({ method: "POST" })
+  .validator(z.object({ userId: z.string() }))
+  .handler(async ({ data }) => {
+    await assertAdmin();
+    const db = await getD1();
+    await db.prepare("DELETE FROM shifts WHERE user_id = ?").bind(data.userId).run();
+    return { ok: true };
+  });

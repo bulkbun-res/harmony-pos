@@ -1097,6 +1097,7 @@ export const defaultState = (): PosState => {
     ingredients,
     stockMoves: [],
     shiftStartedAt: Date.now(),
+    activeShift: null,
     version: 7,
   };
 };
@@ -1121,6 +1122,7 @@ interface Ctx {
   /** إضافة/خصم كمية من المخزن مع تسجيل الحركة */
   stockMove: (ingredientId: string, qty: number, reason: StockMoveReason, note?: string) => void;
   startShift: () => void;
+  setActiveShift: (shift: any) => void;
   deleteOrder: (id: string) => void;
   resetAll: () => void;
 }
@@ -1346,6 +1348,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         }).catch(console.error);
       },
       startShift: () => setState((s) => ({ ...s, shiftStartedAt: Date.now() })),
+      setActiveShift: (shift) => setState((s) => ({ ...s, activeShift: shift })),
       saveOrder: (order) => {
         let saved: Order = { ...order, orderNo: order.orderNo ?? 0 } as Order;
         setState((s) => {
@@ -1365,7 +1368,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
             return applyStock(next, delta, "sale", undefined, saved.orderNo);
           }
           const orderNo = order.orderNo ?? s.nextOrderNo;
-          saved = { ...order, orderNo, updatedAt: Date.now() } as Order;
+          saved = { ...order, orderNo, shiftId: order.shiftId || s.activeShift?.id || undefined, updatedAt: Date.now() } as Order;
           const next = {
             ...s,
             orders: [saved, ...s.orders],
@@ -1386,6 +1389,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
             total: saved.total,
             paymentMethod: saved.payments[0]?.method ?? "cash",
             status: saved.status,
+            shiftId: saved.shiftId || null,
             createdAt: saved.createdAt,
             updatedAt: saved.updatedAt,
             lines: saved.lines.map((l) => ({
@@ -1428,6 +1432,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
               total: cancelledOrder.total,
               paymentMethod: cancelledOrder.payments[0]?.method ?? "cash",
               status: cancelledOrder.status,
+              shiftId: cancelledOrder.shiftId || null,
               createdAt: cancelledOrder.createdAt,
               updatedAt: cancelledOrder.updatedAt,
               lines: cancelledOrder.lines.map((l) => ({

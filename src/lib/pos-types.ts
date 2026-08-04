@@ -112,6 +112,7 @@ export interface Order {
   total: number;
   payments: OrderPayment[];
   note?: string;
+  shiftId?: string;
 }
 
 export interface PosState {
@@ -125,6 +126,7 @@ export interface PosState {
   stockMoves: StockMove[];
   /** بداية الوردية الحالية */
   shiftStartedAt: number;
+  activeShift?: { id: string; user_id: string; user_name: string; opened_at: string; opening_cash: number } | null;
   version?: number;
 }
 

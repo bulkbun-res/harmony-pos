@@ -60,7 +60,8 @@ import {
   logAttendanceFn,
   logSalaryTransactionFn,
 } from "@/lib/admin.functions";
-import { createUserFn, listUsersFn, toggleUserFn } from "@/lib/auth.functions";
+import { createUserFn, listUsersFn, toggleUserFn, deleteUserFn, updateUserPasswordFn, deleteUserShiftsFn } from "@/lib/auth.functions";
+import { listShiftsFn, deleteShiftFn } from "@/lib/shift.functions";
 import { useAuth } from "@/lib/use-auth";
 import { EGP } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
@@ -182,7 +183,12 @@ function AdminDashboard() {
   const fetchUsers = useServerFn(listUsersFn);
   const addUser = useServerFn(createUserFn);
   const toggleUser = useServerFn(toggleUserFn);
+  const removeUser = useServerFn(deleteUserFn);
+  const changeUserPassword = useServerFn(updateUserPasswordFn);
+  const removeUserShifts = useServerFn(deleteUserShiftsFn);
   const fetchReports = useServerFn(getDetailedReportsFn);
+  const fetchShifts = useServerFn(listShiftsFn);
+  const removeShift = useServerFn(deleteShiftFn);
 
   // الحالات المحلية
   const [isMounted, setIsMounted] = useState(false);
@@ -197,9 +203,17 @@ function AdminDashboard() {
   const [salaryTxs, setSalaryTxs] = useState<SalaryTransaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [usersList, setUsersList] = useState<UserAccount[]>([]);
+  const [shiftsList, setShiftsList] = useState<any[]>([]);
   const [reports, setReports] = useState<any>(null);
   const [reportDays, setReportDays] = useState(30);
   const [reportsLoading, setReportsLoading] = useState(false);
+  
+  // حالات تغيير الباسورد للمستخدمين
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [targetUserId, setTargetUserId] = useState("");
+  const [newPasswordVal, setNewPasswordVal] = useState("");
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  
   const [loading, setLoading] = useState(true);
 
   // حضور اليوم
@@ -214,18 +228,20 @@ function AdminDashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [m, e, s, ex, u] = await Promise.all([
+      const [m, e, s, ex, u, sh] = await Promise.all([
         fetchMetrics({}),
         fetchEmployees({}),
         fetchSalaryTx({}),
         fetchExpenses({}),
         fetchUsers({}),
+        fetchShifts({}),
       ]);
       setMetrics(m);
       setEmployees(e);
       setSalaryTxs(s);
       setExpenses(ex);
       setUsersList(u);
+      setShiftsList(sh);
     } catch (err: unknown) {
       console.error("Failed to load admin dashboard data:", err);
       const error = err as Error;
@@ -233,7 +249,7 @@ function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [fetchMetrics, fetchEmployees, fetchSalaryTx, fetchExpenses, fetchUsers]);
+  }, [fetchMetrics, fetchEmployees, fetchSalaryTx, fetchExpenses, fetchUsers, fetchShifts]);
 
   useEffect(() => {
     void loadData();
@@ -381,6 +397,59 @@ function AdminDashboard() {
     } catch (err: unknown) {
       const error = err as Error;
       toast.error(error.message || "تعذر تحديث الحساب");
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذا المستخدم نهائياً؟")) return;
+    try {
+      await removeUser({ data: { id } });
+      toast.success("تم حذف المستخدم بنجاح");
+      void loadData();
+    } catch (err: any) {
+      toast.error(err.message || "تعذر حذف المستخدم");
+    }
+  };
+
+  const handleDeleteUserShifts = async (userId: string) => {
+    if (!confirm("هل أنت متأكد من حذف سجل ورديات وتقارير هذا المستخدم بالكامل؟ لا يمكن التراجع عن هذا الإجراء.")) return;
+    try {
+      await removeUserShifts({ data: { userId } });
+      toast.success("تم حذف سجل الورديات والتقارير بنجاح");
+      void loadData();
+    } catch (err: any) {
+      toast.error(err.message || "تعذر حذف سجل الورديات");
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPasswordVal.length < 6) {
+      toast.error("كلمة المرور يجب ألا تقل عن 6 أحرف");
+      return;
+    }
+    setPasswordSubmitting(true);
+    try {
+      await changeUserPassword({ data: { id: targetUserId, password: newPasswordVal } });
+      toast.success("تم تغيير كلمة المرور بنجاح");
+      setPasswordModalOpen(false);
+      setNewPasswordVal("");
+      setTargetUserId("");
+    } catch (err: any) {
+      toast.error(err.message || "تعذر تغيير كلمة المرور");
+    } finally {
+      setPasswordSubmitting(false);
+    }
+  };
+
+  const handleDeleteShift = async (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذا السجل للوردية؟")) return;
+    try {
+      await removeShift({ data: { id } });
+      toast.success("تم حذف سجل الوردية");
+      void loadData();
+    } catch (err: any) {
+      toast.error(err.message || "تعذر حذف الوردية");
     }
   };
 
@@ -916,6 +985,83 @@ function AdminDashboard() {
                       </div>
                     </div>
                   </div>
+
+                  {/* سجل الورديات والدرج */}
+                  <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur space-y-4">
+                    <h3 className="text-xs font-black text-primary flex items-center gap-2">
+                      💼 سجل الورديات وجرد درج النقدية الكاشير
+                    </h3>
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-muted-foreground border-b border-white/5">
+                            <th className="py-2 text-start">الكاشير</th>
+                            <th className="py-2 text-start">تاريخ البدء</th>
+                            <th className="py-2 text-start">تاريخ الإقفال</th>
+                            <th className="py-2 text-end">المبلغ الافتتاحي</th>
+                            <th className="py-2 text-end">المتوقع بالدرج</th>
+                            <th className="py-2 text-end">الفعلي بالدرج</th>
+                            <th className="py-2 text-end">العجز / الزيادة</th>
+                            <th className="py-2 text-end">ملاحظات الجرد</th>
+                            <th className="py-2 text-end">إجراء</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shiftsList.map((s: any) => {
+                            const diff = s.difference ?? 0;
+                            return (
+                              <tr key={s.id} className="border-b border-white/5">
+                                <td className="py-2.5 font-extrabold text-foreground">{s.user_name}</td>
+                                <td className="py-2.5 text-muted-foreground">
+                                  {new Date(s.opened_at).toLocaleString("ar-EG", { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td className="py-2.5 text-muted-foreground">
+                                  {s.closed_at 
+                                    ? new Date(s.closed_at).toLocaleString("ar-EG", { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : <span className="text-primary font-bold">وردية مفتوحة 🟢</span>
+                                  }
+                                </td>
+                                <td className="py-2.5 text-end font-bold">{EGP(s.opening_cash)}</td>
+                                <td className="py-2.5 text-end font-bold text-muted-foreground">{EGP(s.expected_cash)}</td>
+                                <td className="py-2.5 text-end font-bold">
+                                  {s.closed_at ? EGP(s.actual_cash ?? 0) : "-"}
+                                </td>
+                                <td className="py-2.5 text-end">
+                                  {s.closed_at ? (
+                                    <span className={cn(
+                                      "font-black text-xs",
+                                      diff < 0 ? "text-destructive" : diff > 0 ? "text-amber-500" : "text-emerald-500"
+                                    )}>
+                                      {diff === 0 ? "متطابق" : EGP(diff)}
+                                    </span>
+                                  ) : "-"}
+                                </td>
+                                <td className="py-2.5 text-end text-[10px] text-muted-foreground max-w-[8rem] truncate" title={s.notes || ""}>
+                                  {s.notes || "-"}
+                                </td>
+                                <td className="py-2.5 text-end">
+                                  <button
+                                    onClick={() => handleDeleteShift(s.id)}
+                                    className="text-destructive/50 hover:text-destructive transition-colors p-1"
+                                    title="حذف هذا السجل"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {!shiftsList.length && (
+                            <tr>
+                              <td colSpan={9} className="text-center py-12 text-muted-foreground">
+                                لا توجد ورديات مسجلة بعد.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </>
               ) : (
                 <div className="text-center py-16 text-muted-foreground text-xs">فشل تحميل بيانات التقارير</div>
@@ -1415,19 +1561,49 @@ function AdminDashboard() {
                                 {u.active === 1 ? "نشط" : "مجمد"}
                               </span>
                             </td>
-                            <td className="py-3 text-end">
+                            <td className="py-3 text-end flex justify-end items-center gap-1.5 flex-wrap">
                               {u.username !== "admin" && (
-                                <button
-                                  onClick={() => handleToggleUser(u.id, u.active === 0)}
-                                  className={cn(
-                                    "text-xs px-2.5 py-1 rounded-lg border font-bold",
-                                    u.active === 1
-                                      ? "border-destructive/20 text-destructive hover:bg-destructive/10"
-                                      : "border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10",
-                                  )}
-                                >
-                                  {u.active === 1 ? "تجميد" : "تفعيل"}
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleToggleUser(u.id, u.active === 0)}
+                                    className={cn(
+                                      "text-[10px] px-2 py-1 rounded-lg border font-bold transition-all",
+                                      u.active === 1
+                                        ? "border-destructive/20 text-destructive hover:bg-destructive/10"
+                                        : "border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10",
+                                    )}
+                                  >
+                                    {u.active === 1 ? "تجميد" : "تفعيل"}
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      setTargetUserId(u.id);
+                                      setNewPasswordVal("");
+                                      setPasswordModalOpen(true);
+                                    }}
+                                    title="تغيير كلمة المرور"
+                                    className="p-1 rounded-lg bg-[#050908]/40 border border-white/5 text-muted-foreground hover:text-primary transition-colors"
+                                  >
+                                    <Key className="h-3.5 w-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteUserShifts(u.id)}
+                                    title="حذف الورديات والسجلات"
+                                    className="p-1 rounded-lg bg-[#050908]/40 border border-white/5 text-muted-foreground hover:text-amber-500 transition-colors"
+                                  >
+                                    <History className="h-3.5 w-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteUser(u.id)}
+                                    title="حذف الحساب نهائياً"
+                                    className="p-1 rounded-lg bg-[#050908]/40 border border-white/5 text-muted-foreground hover:text-destructive transition-colors"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
                               )}
                             </td>
                           </tr>
@@ -1441,6 +1617,55 @@ function AdminDashboard() {
           </Tabs>
         </main>
       )}
+
+      {/* نافذة تغيير كلمة المرور للمستخدم */}
+      <Dialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
+        <DialogContent className="max-w-sm bg-[#0b1411] border-white/5 rounded-3xl text-right p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-primary flex items-center gap-2 justify-end">
+              تغيير كلمة المرور للمستخدم 🔑
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleChangePasswordSubmit} className="space-y-4 my-2 text-right">
+            <div className="space-y-2 text-start">
+              <label className="text-xs font-bold text-muted-foreground pr-1 block text-right">
+                كلمة المرور الجديدة (6 أحرف على الأقل)
+              </label>
+              <Input
+                type="password"
+                required
+                value={newPasswordVal}
+                onChange={(e) => setNewPasswordVal(e.target.value)}
+                placeholder="أدخل كلمة المرور الجديدة"
+                className="bg-[#050908] border-white/5 rounded-2xl h-11 text-right text-xs"
+              />
+            </div>
+
+            <DialogFooter className="mt-6 flex flex-row gap-2 justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setPasswordModalOpen(false)}
+                className="h-11 rounded-2xl font-bold text-xs"
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                disabled={passwordSubmitting}
+                className="h-11 rounded-2xl font-black text-xs bg-primary text-primary-foreground hover:bg-primary/90 flex-1"
+              >
+                {passwordSubmitting ? (
+                  <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full mx-auto"></div>
+                ) : (
+                  "حفظ كلمة المرور"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

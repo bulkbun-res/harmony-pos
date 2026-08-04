@@ -21,6 +21,7 @@ const syncOrderSchema = z.object({
   total: z.number(),
   paymentMethod: z.string(),
   status: z.string(),
+  shiftId: z.string().nullable().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
   lines: z.array(syncItemSchema),
@@ -36,12 +37,13 @@ export const syncOrderFn = createServerFn({ method: "POST" })
     // 1. إدخال أو تحديث الفاتورة
     await db
       .prepare(
-        `INSERT INTO sales_orders (id, order_no, subtotal, discount, service, tax, total, payment_method, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO sales_orders (id, order_no, subtotal, discount, service, tax, total, payment_method, status, shift_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET 
            status = excluded.status,
            updated_at = excluded.updated_at,
            payment_method = excluded.payment_method,
+           shift_id = COALESCE(excluded.shift_id, sales_orders.shift_id),
            total = excluded.total`,
       )
       .bind(
@@ -54,6 +56,7 @@ export const syncOrderFn = createServerFn({ method: "POST" })
         data.total,
         data.paymentMethod,
         data.status,
+        data.shiftId || null,
         createdStr,
         updatedStr,
       )
