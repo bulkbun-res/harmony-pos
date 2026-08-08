@@ -1279,8 +1279,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
                   ...s,
                   groups: res.menu.groups,
                   ingredients: mergedIngredients,
-                  taxRate: res.menu.taxRate ?? s.taxRate,
-                  serviceRate: res.menu.serviceRate ?? s.serviceRate,
+                  taxRate: 0,
+                  serviceRate: 0,
                   items: res.menu.items.map((dbItem) => {
                     const defaultItem = s.items.find((i) => i.id === dbItem.id);
                     return {
