@@ -36,6 +36,16 @@ export function useMenuPublisher() {
           ingredients: (i.recipe ?? [])
             .map((r) => state.ingredients.find((x) => x.id === r.ingredientId)?.name)
             .filter((n): n is string => !!n),
+          modifiers: i.modifiers ?? [],
+          recipe: i.recipe ?? [],
+        })),
+        ingredients: state.ingredients.map((ing) => ({
+          id: ing.id,
+          name: ing.name,
+          unit: ing.unit,
+          stock: ing.stock,
+          par: ing.par,
+          lowAt: ing.lowAt,
         })),
       };
       const hash = JSON.stringify(menu);

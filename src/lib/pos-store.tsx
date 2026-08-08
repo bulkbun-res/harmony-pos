@@ -1226,10 +1226,32 @@ export function PosProvider({ children }: { children: ReactNode }) {
         .then((res) => {
           if (res?.menu?.items?.length) {
             setState((s) => {
-              // Only overwrite groups and items from the database to preserve local orders and inventory moves
+              // Merge ingredients catalog to preserve local stock levels
+              const mergedIngredients = [
+                ...s.ingredients.map((localIng) => {
+                  const dbIng = res.menu.ingredients?.find((x) => x.id === localIng.id);
+                  if (!dbIng) return localIng;
+                  return {
+                    ...localIng,
+                    name: dbIng.name,
+                    unit: dbIng.unit as any,
+                    par: dbIng.par,
+                    lowAt: dbIng.lowAt,
+                  };
+                }),
+                ...(res.menu.ingredients ?? [])
+                  .filter((dbIng) => !s.ingredients.some((x) => x.id === dbIng.id))
+                  .map((dbIng) => ({
+                    ...dbIng,
+                    unit: dbIng.unit as any,
+                    stock: dbIng.stock ?? 0,
+                  })),
+              ];
+
               return {
                 ...s,
                 groups: res.menu.groups,
+                ingredients: mergedIngredients,
                 items: res.menu.items.map((dbItem) => {
                   const defaultItem = s.items.find((i) => i.id === dbItem.id);
                   return {

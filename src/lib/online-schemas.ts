@@ -20,6 +20,34 @@ export const menuItemSchema = z.object({
   image: z.string().max(2000).optional(),
   desc: z.string().max(400).optional(),
   ingredients: z.array(z.string().max(80)).max(40).optional(),
+  modifiers: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        name: z.string().max(120),
+        price: z.number().min(0).max(100000),
+      }),
+    )
+    .max(100)
+    .optional(),
+  recipe: z
+    .array(
+      z.object({
+        ingredientId: z.string().max(64),
+        qty: z.number().min(0).max(100000),
+      }),
+    )
+    .max(100)
+    .optional(),
+});
+
+export const ingredientSchema = z.object({
+  id: z.string().max(64),
+  name: z.string().max(120),
+  unit: z.string().max(24),
+  stock: z.number(),
+  par: z.number(),
+  lowAt: z.number(),
 });
 
 export const menuSchema = z.object({
@@ -34,6 +62,7 @@ export const menuSchema = z.object({
     )
     .max(60),
   items: z.array(menuItemSchema).max(500),
+  ingredients: z.array(ingredientSchema).max(500).optional(),
 });
 
 export type PublicMenu = z.infer<typeof menuSchema>;
