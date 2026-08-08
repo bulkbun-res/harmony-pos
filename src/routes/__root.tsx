@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/use-auth";
 import { PosProvider } from "@/lib/pos-store";
 import { Toaster } from "@/components/ui/sonner";
+import { useMenuPublisher } from "@/lib/use-online-orders";
 
 function NotFoundComponent() {
   return (
@@ -124,6 +125,12 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function MenuAutoSync() {
+  if (typeof window === "undefined") return null;
+  useMenuPublisher();
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -141,6 +148,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PosProvider>
+          <MenuAutoSync />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <Toaster position="top-center" richColors />
