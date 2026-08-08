@@ -1,5 +1,5 @@
 import { getD1 } from "@/integrations/d1/client.server";
-import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server";
+import { getCookie, setCookie, deleteCookie, getRequest } from "@tanstack/react-start/server";
 
 export interface AuthenticatedUser {
   id: string;
@@ -22,7 +22,24 @@ export async function hashPassword(password: string, username: string): Promise<
 
 /** يجلب المستخدم الحالي المسجل دخوله بناءً على الكوكي */
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
-  const token = getCookie(SESSION_COOKIE_NAME);
+  let token = getCookie(SESSION_COOKIE_NAME);
+  
+  // Fallback: parse from headers manually if getCookie fails (common in server POST functions)
+  if (!token) {
+    try {
+      const request = getRequest();
+      const cookieHeader = request?.headers?.get("cookie");
+      if (cookieHeader) {
+        const match = cookieHeader.match(new RegExp('(^|;\\s*)' + SESSION_COOKIE_NAME + '=([^;]*)'));
+        if (match && match[2]) {
+          token = decodeURIComponent(match[2]);
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing cookie manually in getCurrentUser:", e);
+    }
+  }
+
   if (!token) return null;
 
   try {
@@ -114,7 +131,22 @@ export async function loginUser(
 
 /** تسجيل الخروج وحذف الكوكي وإنهاء الجلسة */
 export async function logoutUser(): Promise<void> {
-  const token = getCookie(SESSION_COOKIE_NAME);
+  let token = getCookie(SESSION_COOKIE_NAME);
+  if (!token) {
+    try {
+      const request = getRequest();
+      const cookieHeader = request?.headers?.get("cookie");
+      if (cookieHeader) {
+        const match = cookieHeader.match(new RegExp('(^|;\\s*)' + SESSION_COOKIE_NAME + '=([^;]*)'));
+        if (match && match[2]) {
+          token = decodeURIComponent(match[2]);
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing cookie manually in logoutUser:", e);
+    }
+  }
+
   if (token) {
     try {
       const db = await getD1();
