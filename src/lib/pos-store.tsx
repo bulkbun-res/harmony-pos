@@ -1090,15 +1090,15 @@ export const defaultState = (): PosState => {
   return {
     groups,
     items,
-    taxRate: 0.14,
-    serviceRate: 0.12,
+    taxRate: 0,
+    serviceRate: 0,
     orders: [],
     nextOrderNo: 1001,
     ingredients,
     stockMoves: [],
     shiftStartedAt: Date.now(),
     activeShift: null,
-    version: 7,
+    version: 8,
   };
 };
 
@@ -1224,6 +1224,12 @@ export function PosProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem(STORAGE_KEY);
           // Keep the default state initialized from defaultState()
         } else {
+          // If version is older than 8, override local storage tax/service rates to 0%
+          if (!parsed.version || parsed.version < 8) {
+            parsed.taxRate = 0;
+            parsed.serviceRate = 0;
+            parsed.version = 8;
+          }
           setState((s) => ({
             ...s,
             ...parsed,
