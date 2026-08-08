@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -68,6 +68,9 @@ import {
   listExpensesFn,
   logAttendanceFn,
   logSalaryTransactionFn,
+  backupDatabaseFn,
+  restoreDatabaseFn,
+  wipeDatabaseFn,
 } from "@/lib/admin.functions";
 import { createUserFn, listUsersFn, toggleUserFn, deleteUserFn, updateUserPasswordFn, deleteUserShiftsFn } from "@/lib/auth.functions";
 import { listShiftsFn, deleteShiftFn } from "@/lib/shift.functions";
@@ -198,6 +201,96 @@ function AdminDashboard() {
   const fetchReports = useServerFn(getDetailedReportsFn);
   const fetchShifts = useServerFn(listShiftsFn);
   const removeShift = useServerFn(deleteShiftFn);
+
+  const backupDB = useServerFn(backupDatabaseFn);
+  const restoreDB = useServerFn(restoreDatabaseFn);
+  const wipeDB = useServerFn(wipeDatabaseFn);
+
+  const { resetAll } = usePos();
+  const [dbSubmitting, setDbSubmitting] = useState(false);
+  const [wipeConfirm1, setWipeConfirm1] = useState(false);
+  const [wipeConfirm2, setWipeConfirm2] = useState(false);
+
+  // دالة تحميل نسخة احتياطية محلية
+  const handleBackupDownload = async () => {
+    setDbSubmitting(true);
+    const toastId = toast.loading("جاري توليد نسخة احتياطية...");
+    try {
+      const data = await backupDB({});
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `bulkbun_backup_${new Date().toISOString().split("T")[0]}_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      toast.success("تم تنزيل النسخة الاحتياطية بنجاح 💾", { id: toastId });
+    } catch (err: any) {
+      toast.error(err.message || "تعذر تحميل النسخة الاحتياطية", { id: toastId });
+    } finally {
+      setDbSubmitting(false);
+    }
+  };
+
+  // دالة رفع واستعادة نسخة احتياطية
+  const handleRestoreUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("⚠️ تحذير: استعادة النسخة الاحتياطية سيمسح جميع البيانات الحالية ويعوضها ببيانات الملف. هل تريد الاستمرار؟")) {
+      e.target.value = "";
+      return;
+    }
+
+    setDbSubmitting(true);
+    const toastId = toast.loading("جاري قراءة واستعادة الملف...");
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const json = JSON.parse(evt.target?.result as string);
+        await restoreDB({ data: json });
+        
+        // Reset client-side storage
+        resetAll();
+        localStorage.clear();
+        
+        toast.success("تم استعادة النسخة الاحتياطية بنجاح! جاري تحديث الصفحة...", { id: toastId });
+        setTimeout(() => window.location.reload(), 2000);
+      } catch (err: any) {
+        toast.error(err.message || "فشلت قراءة أو استعادة الملف", { id: toastId });
+        setDbSubmitting(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // دالة مسح كل البيانات مع تأكيد مزدوج وأخذ نسخة احتياطية مسبقة
+  const handleWipeData = async () => {
+    setDbSubmitting(true);
+    const toastId = toast.loading("جاري أخذ نسخة احتياطية تلقائياً قبل المسح...");
+    try {
+      const data = await backupDB({});
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `AUTO_BACKUP_BEFORE_WIPE_${new Date().toISOString().split("T")[0]}_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      toast.loading("جاري مسح قاعدة البيانات السحابية...", { id: toastId });
+      await wipeDB({});
+
+      resetAll();
+      localStorage.clear();
+
+      toast.success("تم مسح كافة البيانات بنجاح وبدء تشغيل نظيف! جاري إعادة التحميل...", { id: toastId });
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (err: any) {
+      toast.error(err.message || "فشلت عملية مسح البيانات", { id: toastId });
+      setDbSubmitting(false);
+    }
+  };
 
   // الحالات المحلية
   const [isMounted, setIsMounted] = useState(false);
@@ -586,6 +679,12 @@ function AdminDashboard() {
                 className="h-10 px-5 font-bold rounded-xl data-[state=active]:bg-primary"
               >
                 المستخدمين والصلاحيات
+              </TabsTrigger>
+              <TabsTrigger
+                value="database"
+                className="h-10 px-5 font-bold rounded-xl data-[state=active]:bg-primary"
+              >
+                النسخ الاحتياطي والبيانات 💾
               </TabsTrigger>
             </TabsList>
 
@@ -1627,6 +1726,136 @@ function AdminDashboard() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </section>
+              </div>
+            </TabsContent>
+
+            {/* 6. DATABASE BACKUP & WIPE TAB */}
+            <TabsContent value="database" className="space-y-6 mt-4">
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* النسخ الاحتياطي والاستعادة */}
+                <section className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-5 backdrop-blur space-y-4">
+                  <h2 className="text-base font-extrabold flex items-center gap-2 text-primary">
+                    💾 النسخ الاحتياطي واستعادة البيانات
+                  </h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    يمكنك تحميل نسخة احتياطية كاملة من قاعدة البيانات الحالية (تشمل المبيعات، الورديات، المخزن، الموظفين والحسابات) بصيغة ملف JSON وحفظها على جهازك للرجوع إليها في أي وقت أو استعادتها.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <Button
+                      onClick={handleBackupDownload}
+                      disabled={dbSubmitting}
+                      className="flex-1 h-12 rounded-xl font-extrabold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2"
+                    >
+                      📥 تنزيل نسخة احتياطية (.json)
+                    </Button>
+
+                    <div className="relative flex-1">
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleRestoreUpload}
+                        disabled={dbSubmitting}
+                        className="hidden"
+                        id="restore-upload-input"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById("restore-upload-input")?.click()}
+                        disabled={dbSubmitting}
+                        className="w-full h-12 rounded-xl font-extrabold border-primary/20 text-primary hover:bg-primary/10 flex items-center justify-center gap-2"
+                      >
+                        📤 استعادة من نسخة احتياطية
+                      </Button>
+                    </div>
+                  </div>
+                </section>
+
+                {/* مسح كل البيانات */}
+                <section className="rounded-2xl border border-destructive/20 bg-destructive/5 p-5 backdrop-blur space-y-4">
+                  <h2 className="text-base font-extrabold flex items-center gap-2 text-destructive">
+                    ⚠️ منطقة خطرة: مسح شامل للبيانات
+                  </h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    سيؤدي هذا الإجراء إلى مسح كل المبيعات، الفواتير، تقارير الورديات، جرد المخزن، وحسابات الموظفين بالكامل من السيرفر.
+                    <span className="text-destructive font-bold block mt-1">
+                      (ملاحظة أمان: سيتم الاحتفاظ بحسابك الإداري الحالي فقط لتفادي إغلاق النظام، وسيتم تنزيل نسخة احتياطية تلقائياً على جهازك قبل البدء بالمسح لضمان عدم ضياع أعمالك بالخطأ).
+                    </span>
+                  </p>
+
+                  <div className="pt-2 space-y-3">
+                    {!wipeConfirm1 && !wipeConfirm2 && (
+                      <Button
+                        onClick={() => setWipeConfirm1(true)}
+                        disabled={dbSubmitting}
+                        variant="destructive"
+                        className="w-full h-12 rounded-xl font-black bg-destructive hover:bg-destructive/90 flex items-center justify-center gap-2"
+                      >
+                        🔥 مسح كافة بيانات النظام بالكامل
+                      </Button>
+                    )}
+
+                    {wipeConfirm1 && !wipeConfirm2 && (
+                      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                        <p className="text-xs font-black text-destructive text-center">
+                          ❓ هل أنت متأكد فعلاً؟ هذا سيمسح جميع العمليات والورديات نهائياً!
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setWipeConfirm1(false)}
+                            className="flex-1 text-xs font-bold"
+                          >
+                            تراجع وإلغاء
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setWipeConfirm2(true)}
+                            className="flex-1 text-xs font-black bg-destructive"
+                          >
+                            نعم، متأكد (تأكيد أول) ⚠️
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {wipeConfirm2 && (
+                      <div className="rounded-xl border border-destructive/60 bg-destructive/20 p-3 space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                        <p className="text-xs font-black text-destructive text-center">
+                          🚨 تأكيد أخير وأكيد: هل تريد بدء مسح البيانات وبدء تشغيل نظيف الآن؟ (سيتم حفظ نسخة احتياطية قبل المسح)
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setWipeConfirm1(false);
+                              setWipeConfirm2(false);
+                            }}
+                            className="flex-1 text-xs font-bold"
+                          >
+                            إلغاء الأمر
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              void handleWipeData();
+                              setWipeConfirm1(false);
+                              setWipeConfirm2(false);
+                            }}
+                            className="flex-1 text-xs font-black bg-red-600 animate-pulse"
+                          >
+                            تأكيد المسح النهائي والتنزيل 🔥
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </section>
               </div>

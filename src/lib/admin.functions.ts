@@ -429,3 +429,134 @@ export const getDetailedReportsFn = createServerFn({ method: "GET" })
       wasteSummary,
     };
   });
+
+// ─── النسخ الاحتياطي والاستعادة ──────────────────────────────────────────────────
+export const backupDatabaseFn = createServerFn({ method: "POST" }).handler(async () => {
+  await assertAdmin();
+  const db = await getD1();
+
+  const tables = [
+    "users",
+    "employees",
+    "attendance",
+    "salary_transactions",
+    "expenses",
+    "sales_orders",
+    "sales_order_items",
+    "inventory_logs",
+    "shifts",
+    "menu_snapshot",
+    "online_orders",
+    "order_seq"
+  ];
+
+  const backup: Record<string, any[]> = {};
+  for (const table of tables) {
+    const res = await db.prepare(`SELECT * FROM ${table}`).all();
+    backup[table] = res.results ?? [];
+  }
+
+  return backup;
+});
+
+export const restoreDatabaseFn = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.record(z.string(), z.array(z.any())).parse(d))
+  .handler(async ({ data }) => {
+    const adminUser = await getCurrentUser();
+    if (!adminUser || adminUser.role !== "admin") {
+      throw new Error("غير مصرح لك بالدخول");
+    }
+    const db = await getD1();
+
+    const tablesDeleteOrder = [
+      "sales_order_items",
+      "sales_orders",
+      "attendance",
+      "salary_transactions",
+      "shifts",
+      "employees",
+      "users",
+      "expenses",
+      "inventory_logs",
+      "menu_snapshot",
+      "online_orders",
+      "order_seq"
+    ];
+
+    const tablesInsertOrder = [
+      "users",
+      "employees",
+      "attendance",
+      "salary_transactions",
+      "shifts",
+      "sales_orders",
+      "sales_order_items",
+      "expenses",
+      "inventory_logs",
+      "menu_snapshot",
+      "online_orders",
+      "order_seq"
+    ];
+
+    // Check if backup contains valid schema tables
+    const receivedTables = Object.keys(data);
+    const hasValidTable = receivedTables.some(t => tablesInsertOrder.includes(t));
+    if (!hasValidTable) {
+      throw new Error("ملف النسخة الاحتياطية غير صالح أو فارغ");
+    }
+
+    // Clear tables
+    for (const table of tablesDeleteOrder) {
+      await db.prepare(`DELETE FROM ${table}`).run();
+    }
+
+    // Insert rows in batch
+    for (const table of tablesInsertOrder) {
+      const rows = data[table];
+      if (!rows || rows.length === 0) continue;
+
+      const columns = Object.keys(rows[0]);
+      const placeholders = columns.map(() => "?").join(", ");
+      const query = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
+
+      const stmt = db.prepare(query);
+      for (const row of rows) {
+        const values = columns.map(col => row[col]);
+        await stmt.bind(...values).run();
+      }
+    }
+
+    return { ok: true };
+  });
+
+export const wipeDatabaseFn = createServerFn({ method: "POST" }).handler(async () => {
+  const adminUser = await getCurrentUser();
+  if (!adminUser || adminUser.role !== "admin") {
+    throw new Error("غير مصرح لك بالدخول");
+  }
+  const db = await getD1();
+
+  const tablesToClear = [
+    "sales_order_items",
+    "sales_orders",
+    "inventory_logs",
+    "shifts",
+    "attendance",
+    "salary_transactions",
+    "expenses",
+    "employees",
+    "online_orders"
+  ];
+
+  for (const table of tablesToClear) {
+    await db.prepare(`DELETE FROM ${table}`).run();
+  }
+
+  // Keep current logged-in admin user, delete others
+  await db.prepare("DELETE FROM users WHERE id != ?").bind(adminUser.id).run();
+
+  // Reset sequence
+  await db.prepare("UPDATE order_seq SET next_no = 5001 WHERE id = 1").run();
+
+  return { ok: true };
+});
