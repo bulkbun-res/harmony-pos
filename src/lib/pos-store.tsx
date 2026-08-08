@@ -1128,11 +1128,31 @@ interface Ctx {
 }
 
 /** استهلاك المخزن لسطور الفاتورة */
-const usageOf = (s: PosState, lines: { itemId: string; qty: number }[]) => {
+const usageOf = (s: PosState, lines: any[]) => {
   const map: Record<string, number> = {};
   for (const l of lines) {
     const item = s.items.find((i) => i.id === l.itemId);
+    
+    // Find all "بدون" (without) modifiers in this line
+    const excludedIngredients = new Set<string>();
+    if (l.modifiers) {
+      for (const m of l.modifiers) {
+        if (m.name.startsWith("بدون ")) {
+          const ingName = m.name.substring(5).trim();
+          const ing = s.ingredients.find(
+            (x) => x.name.trim() === ingName || ingName.includes(x.name.trim()) || x.name.trim().includes(ingName)
+          );
+          if (ing) {
+            excludedIngredients.add(ing.id);
+          }
+        }
+      }
+    }
+
     for (const r of item?.recipe ?? []) {
+      if (excludedIngredients.has(r.ingredientId)) {
+        continue;
+      }
       map[r.ingredientId] = (map[r.ingredientId] ?? 0) + r.qty * l.qty;
     }
   }
@@ -1221,55 +1241,64 @@ export function PosProvider({ children }: { children: ReactNode }) {
     setReady(true);
 
     // Fetch the latest menu snapshot from Cloudflare D1 database to sync sizes, sorting, and pricing across devices
-    import("@/lib/online.functions").then(({ getPublicMenu }) => {
-      getPublicMenu()
-        .then((res) => {
-          if (res?.menu?.items?.length) {
-            setState((s) => {
-              // Merge ingredients catalog to preserve local stock levels
-              const mergedIngredients = [
-                ...s.ingredients.map((localIng) => {
-                  const dbIng = res.menu.ingredients?.find((x) => x.id === localIng.id);
-                  if (!dbIng) return localIng;
-                  return {
-                    ...localIng,
-                    name: dbIng.name,
-                    unit: dbIng.unit as any,
-                    par: dbIng.par,
-                    lowAt: dbIng.lowAt,
-                  };
-                }),
-                ...(res.menu.ingredients ?? [])
-                  .filter((dbIng) => !s.ingredients.some((x) => x.id === dbIng.id))
-                  .map((dbIng) => ({
-                    ...dbIng,
-                    unit: dbIng.unit as any,
-                    stock: dbIng.stock ?? 0,
-                  })),
-              ];
+    const syncMenu = () => {
+      import("@/lib/online.functions").then(({ getPublicMenu }) => {
+        getPublicMenu()
+          .then((res) => {
+            if (res?.menu?.items?.length) {
+              setState((s) => {
+                // Merge ingredients catalog to preserve local stock levels
+                const mergedIngredients = [
+                  ...s.ingredients.map((localIng) => {
+                    const dbIng = res.menu.ingredients?.find((x) => x.id === localIng.id);
+                    if (!dbIng) return localIng;
+                    return {
+                      ...localIng,
+                      name: dbIng.name,
+                      unit: dbIng.unit as any,
+                      par: dbIng.par,
+                      lowAt: dbIng.lowAt,
+                    };
+                  }),
+                  ...(res.menu.ingredients ?? [])
+                    .filter((dbIng) => !s.ingredients.some((x) => x.id === dbIng.id))
+                    .map((dbIng) => ({
+                      ...dbIng,
+                      unit: dbIng.unit as any,
+                      stock: dbIng.stock ?? 0,
+                    })),
+                ];
 
-              return {
-                ...s,
-                groups: res.menu.groups,
-                ingredients: mergedIngredients,
-                items: res.menu.items.map((dbItem) => {
-                  const defaultItem = s.items.find((i) => i.id === dbItem.id);
-                  return {
-                    ...dbItem,
-                    w: dbItem.w ?? defaultItem?.w ?? 1,
-                    h: dbItem.h ?? defaultItem?.h ?? 1,
-                    shape: dbItem.shape ?? defaultItem?.shape ?? "square",
-                    color: dbItem.color ?? defaultItem?.color ?? "leaf",
-                    modifiers: dbItem.modifiers ?? defaultItem?.modifiers ?? [],
-                    recipe: dbItem.recipe ?? defaultItem?.recipe ?? [],
-                  };
-                }),
-              };
-            });
-          }
-        })
-        .catch(console.error);
-    });
+                return {
+                  ...s,
+                  groups: res.menu.groups,
+                  ingredients: mergedIngredients,
+                  taxRate: res.menu.taxRate ?? s.taxRate,
+                  serviceRate: res.menu.serviceRate ?? s.serviceRate,
+                  items: res.menu.items.map((dbItem) => {
+                    const defaultItem = s.items.find((i) => i.id === dbItem.id);
+                    return {
+                      ...dbItem,
+                      w: dbItem.w ?? defaultItem?.w ?? 1,
+                      h: dbItem.h ?? defaultItem?.h ?? 1,
+                      shape: dbItem.shape ?? defaultItem?.shape ?? "square",
+                      color: dbItem.color ?? defaultItem?.color ?? "leaf",
+                      modifiers: dbItem.modifiers ?? defaultItem?.modifiers ?? [],
+                      recipe: dbItem.recipe ?? defaultItem?.recipe ?? [],
+                    };
+                  }),
+                };
+              });
+            }
+          })
+          .catch(console.error);
+      });
+    };
+
+    syncMenu();
+    // Poll every 30 seconds for menu, price, tax, service, and modifier updates
+    const interval = setInterval(syncMenu, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

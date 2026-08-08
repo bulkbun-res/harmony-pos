@@ -198,7 +198,8 @@ function PosScreen() {
   };
 
   const onTileClick = (item: Item) => {
-    if ((item.modifiers || []).length) setModifierItem(item);
+    const hasModifiers = (item.modifiers || []).length > 0 || (item.recipe || []).length > 0;
+    if (hasModifiers) setModifierItem(item);
     else addLine(item);
   };
 
@@ -850,7 +851,32 @@ function ModifiersDialog({
   onClose: () => void;
   onConfirm: (item: Item, mods: Item["modifiers"]) => void;
 }) {
+  const { state } = usePos();
   const [selected, setSelected] = useState<string[]>([]);
+
+  const allModifiers = useMemo(() => {
+    if (!item) return [];
+    const list = [...(item.modifiers ?? [])];
+    
+    // Auto-generate "بدون X" (without X) modifiers based on item's recipe ingredients
+    if (item.recipe) {
+      for (const r of item.recipe) {
+        const ing = state.ingredients.find((x) => x.id === r.ingredientId);
+        if (ing) {
+          const modId = `without-${ing.id}`;
+          const modName = `بدون ${ing.name}`;
+          if (!list.some((m) => m.id === modId)) {
+            list.push({
+              id: modId,
+              name: modName,
+              price: 0,
+            });
+          }
+        }
+      }
+    }
+    return list;
+  }, [item, state.ingredients]);
 
   return (
     <Dialog
@@ -866,8 +892,8 @@ function ModifiersDialog({
         <DialogHeader>
           <DialogTitle>إضافات — {item?.name}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-2">
-          {item?.modifiers.map((m) => {
+        <div className="grid gap-2 max-h-[60vh] overflow-y-auto pr-1">
+          {allModifiers.map((m) => {
             const on = selected.includes(m.id);
             return (
               <button
@@ -881,7 +907,7 @@ function ModifiersDialog({
                 )}
               >
                 <span>{m.name}</span>
-                <span className="text-primary">+ {EGP(m.price)}</span>
+                <span className="text-primary">{m.price > 0 ? `+ ${EGP(m.price)}` : "مشمول / مجاني"}</span>
               </button>
             );
           })}
@@ -893,7 +919,7 @@ function ModifiersDialog({
               if (!item) return;
               onConfirm(
                 item,
-                item.modifiers.filter((m) => selected.includes(m.id)),
+                allModifiers.filter((m) => selected.includes(m.id)),
               );
               setSelected([]);
             }}

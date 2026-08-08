@@ -63,6 +63,8 @@ export const menuSchema = z.object({
     .max(60),
   items: z.array(menuItemSchema).max(500),
   ingredients: z.array(ingredientSchema).max(500).optional(),
+  taxRate: z.number().min(0).max(1).optional(),
+  serviceRate: z.number().min(0).max(1).optional(),
 });
 
 export type PublicMenu = z.infer<typeof menuSchema>;

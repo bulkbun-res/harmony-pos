@@ -47,6 +47,8 @@ export function useMenuPublisher() {
           par: ing.par,
           lowAt: ing.lowAt,
         })),
+        taxRate: state.taxRate,
+        serviceRate: state.serviceRate,
       };
       const hash = JSON.stringify(menu);
       if (!notify && hash === lastHash.current) return;
