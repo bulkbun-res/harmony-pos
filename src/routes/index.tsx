@@ -19,6 +19,7 @@ import { usePos } from "@/lib/pos-store";
 import { useAuth } from "@/lib/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { openShiftFn, closeShiftFn, getCurrentShiftFn } from "@/lib/shift.functions";
+import { printReceipt } from "@/lib/print-receipt";
 import {
   EGP,
   PAYMENT_METHODS,
@@ -243,11 +244,38 @@ function PosScreen() {
       payments: [...(editing?.payments ?? []), { method, amount: due, at: now }],
     });
     toast.success(`تم تحصيل الفاتورة #${saved.orderNo} — ${label} — ${EGP(due)}`);
+    
+    // طباعة الفاتورة تلقائياً للـ XPrinter بعد الدفع
+    printReceipt(saved, {
+      title: "فاتورة كاشير",
+    });
+
     setLines([]);
     setDiscount(0);
     setPayOpen(false);
     setEditing(null);
     if (editId) void navigate({ to: "/", search: {} });
+  };
+
+  const handlePrintDraft = () => {
+    if (!lines.length) return;
+    const draftOrder: Order = {
+      id: editing?.id ?? "draft",
+      orderNo: orderNo,
+      createdAt: editing?.createdAt ?? Date.now(),
+      updatedAt: Date.now(),
+      status: editing?.status ?? "paid",
+      lines,
+      discount,
+      subtotal,
+      service,
+      tax,
+      total,
+      payments: editing?.payments ?? [],
+    };
+    printReceipt(draftOrder, {
+      title: editing ? "تعديل فاتورة" : "مسودة طلب كاشير",
+    });
   };
 
   const cancelEditing = () => {
@@ -543,7 +571,7 @@ function PosScreen() {
                 variant="secondary"
                 className="h-12"
                 disabled={!lines.length}
-                onClick={() => window.print()}
+                onClick={handlePrintDraft}
               >
                 <Printer className="h-5 w-5" />
               </Button>
