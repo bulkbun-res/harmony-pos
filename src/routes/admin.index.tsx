@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Activity,
@@ -18,6 +18,7 @@ import {
   Users,
   Wallet,
   Key,
+  ShoppingBag,
 } from "lucide-react";
 import {
   Bar,
@@ -523,7 +524,15 @@ function AdminDashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span>الذهاب للكاشير 🛒</span>
+          </Link>
+
           <Button
             variant="ghost"
             size="icon"

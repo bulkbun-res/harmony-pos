@@ -20,6 +20,7 @@ const NAV = [
   { to: "/inventory", label: "المخزن", icon: Boxes, adminOnly: true },
   { to: "/layout", label: "تصميم الشاشة", icon: LayoutGrid, adminOnly: false },
   { to: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },
+  { to: "/admin", label: "لوحة الإدارة", icon: ShieldAlert, adminOnly: true },
 ] as const;
 
 export function PosHeader({ right }: { right?: React.ReactNode }) {
