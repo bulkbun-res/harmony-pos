@@ -18,7 +18,7 @@ const NAV = [
   { to: "/online", label: "طلبات المنيو", icon: QrCode, adminOnly: false },
   { to: "/orders", label: "الفواتير", icon: History, adminOnly: false },
   { to: "/inventory", label: "المخزن", icon: Boxes, adminOnly: true },
-  { to: "/layout", label: "تصميم الشاشة", icon: LayoutGrid, adminOnly: true },
+  { to: "/layout", label: "تصميم الشاشة", icon: LayoutGrid, adminOnly: false },
   { to: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },
 ] as const;
 
