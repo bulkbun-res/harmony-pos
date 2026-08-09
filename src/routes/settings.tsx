@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePos } from "@/lib/pos-store";
+import { useMenuPublisher } from "@/lib/use-online-orders";
 import { EGP, STOCK_UNITS, TILE_COLORS, type Item, type TileColor } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,7 @@ async function uploadToImgBB(file: File): Promise<string> {
 function SettingsPage() {
   const { state, addGroup, updateGroup, removeGroup, addItem, updateItem, removeItem, update } =
     usePos();
+  const { publish, publishing } = useMenuPublisher();
   const groups = [...state.groups].sort((a, b) => a.order - b.order);
 
   const [gName, setGName] = useState("");
@@ -90,7 +92,26 @@ function SettingsPage() {
       <PosHeader />
 
       <div className="mx-auto max-w-6xl space-y-4 p-3 lg:p-6">
-        <h1 className="text-2xl font-black">الإعدادات</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/5 pb-2">
+          <h1 className="text-2xl font-black">الإعدادات وإدارة المنيو</h1>
+          
+          <Button
+            onClick={() => void publish(true)}
+            disabled={publishing}
+            className="bg-primary hover:bg-primary/95 text-primary-foreground font-black px-6 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg w-full sm:w-auto text-sm transition-all duration-200"
+          >
+            {publishing ? (
+              <>
+                <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent animate-spin rounded-full"></div>
+                <span>جاري الحفظ والمزامنة...</span>
+              </>
+            ) : (
+              <>
+                <span>حفظ ونشر التعديلات الفورية 💾</span>
+              </>
+            )}
+          </Button>
+        </div>
 
         <Tabs defaultValue="items">
           <TabsList className="h-12 w-full justify-start gap-1 bg-card p-1">

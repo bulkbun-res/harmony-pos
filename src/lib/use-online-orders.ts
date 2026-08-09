@@ -67,9 +67,12 @@ export function useMenuPublisher() {
     [push, state.groups, state.items, state.ingredients],
   );
 
-  // نشر تلقائي عند أي تغيير في المنيو
+  // نشر تلقائي عند أي تغيير في المنيو (مع استثناء صفحة الإعدادات لمنع التضارب أثناء الكتابة)
   useEffect(() => {
     if (!ready) return;
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/settings")) {
+      return;
+    }
     const t = setTimeout(() => void publish(false), 800);
     return () => clearTimeout(t);
   }, [ready, publish]);

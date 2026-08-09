@@ -1302,6 +1302,12 @@ export function PosProvider({ children }: { children: ReactNode }) {
     };
 
     syncMenu();
+
+    // لا تقم بعمل التحديث التلقائي الدوري (الذي قد يمسح التعديلات أثناء الكتابة) في صفحة الإعدادات
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/settings")) {
+      return;
+    }
+
     // Poll every 30 seconds for menu, price, tax, service, and modifier updates
     const interval = setInterval(syncMenu, 30000);
     return () => clearInterval(interval);
