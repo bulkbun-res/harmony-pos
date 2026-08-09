@@ -135,12 +135,34 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch((err) => {
-          console.error("ServiceWorker registration failed: ", err);
+    if (typeof window !== "undefined") {
+      // 1. إلغاء تسجيل أي Service Worker نشط تماماً لمنع الكاش المزعج
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister().then((success) => {
+              if (success) {
+                console.log("ServiceWorker unregistered successfully");
+              }
+            });
+          }
+        }).catch((err) => {
+          console.error("Failed to unregister service workers:", err);
         });
-      });
+      }
+
+      // 2. حذف جميع ملفات الكاش المخزنة في المتصفح بالكامل
+      if ("caches" in window) {
+        caches.keys().then((names) => {
+          for (const name of names) {
+            caches.delete(name).then(() => {
+              console.log(`Cache ${name} deleted successfully`);
+            });
+          }
+        }).catch((err) => {
+          console.error("Failed to delete caches:", err);
+        });
+      }
     }
   }, []);
 

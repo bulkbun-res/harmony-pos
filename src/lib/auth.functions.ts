@@ -104,7 +104,23 @@ export const deleteUserFn = createServerFn({ method: "POST" })
       throw new Error("لا يمكن حذف حساب المدير الرئيسي");
     }
     
-    await db.prepare("DELETE FROM users WHERE id = ?").bind(data.id).run();
+    // التحقق من وجود ورديات مرتبطة لمنع أخطاء القيود الصلبة وقاعدة البيانات
+    const hasShifts = await db
+      .prepare("SELECT id FROM shifts WHERE user_id = ? LIMIT 1")
+      .bind(data.id)
+      .first();
+    if (hasShifts) {
+      throw new Error("لا يمكن حذف هذا المستخدم لوجود سجل ورديات أو تقارير مبيعات مرتبطة به. يرجى تجميد (إلغاء تفعيل) الحساب بدلاً من الحذف.");
+    }
+    
+    try {
+      await db.prepare("DELETE FROM users WHERE id = ?").bind(data.id).run();
+    } catch (e: any) {
+      if (e?.message?.includes("FOREIGN KEY") || e?.message?.includes("constraint")) {
+        throw new Error("لا يمكن حذف هذا المستخدم لوجود عمليات تاريخية مسجلة باسمه في قاعدة البيانات. يمكنك تجميد الحساب بدلاً من ذلك.");
+      }
+      throw e;
+    }
     return { ok: true };
   });
 
