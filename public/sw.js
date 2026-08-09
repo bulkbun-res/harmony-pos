@@ -1,4 +1,4 @@
-const CACHE_NAME = "bulkbun-pwa-v1";
+const CACHE_NAME = "bulkbun-pwa-v2";
 const ASSETS = ["/", "/favicon.png", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
