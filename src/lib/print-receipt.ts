@@ -23,7 +23,12 @@ export interface ReceiptMeta {
 export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
   const lines = order.lines
     .map((l) => {
-      const mods = l.modifiers.map((m) => `<div class="mod">+ ${esc(m.name)}</div>`).join("");
+      const mods = l.modifiers
+        .map((m) => {
+          const prefix = m.name.startsWith("بدون") ? "" : "+ ";
+          return `<div class="mod">${prefix}${esc(m.name)}</div>`;
+        })
+        .join("");
       const price = (l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) * l.qty;
       return `<tr><td>${l.qty} × ${esc(l.name)}${mods}</td><td class="num">${EGP(price)}</td></tr>`;
     })
@@ -41,16 +46,16 @@ export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
 <title>فاتورة #${order.orderNo}</title>
 <style>
   *{box-sizing:border-box}
-  body{font-family:"Cairo",system-ui,sans-serif;margin:0;padding:8px;width:80mm;color:#000;background:#fff}
+  body{font-family:"Cairo",system-ui,sans-serif;margin:0;padding:8px 8px 60px;width:80mm;color:#000;background:#fff}
   h1{font-size:16px;margin:0;text-align:center}
   .sub{text-align:center;font-size:11px;margin:2px 0 6px}
   table{width:100%;border-collapse:collapse;font-size:12px}
   td{padding:2px 0;vertical-align:top}
   .num{text-align:left;white-space:nowrap;font-weight:700}
-  .mod{font-size:10px;color:#444}
+  .mod{font-size:10.5px;color:#000;font-weight:800;margin-right:12px}
   .hr{border-top:1px dashed #000;margin:6px 0}
   .total{display:flex;justify-content:space-between;font-size:15px;font-weight:800;margin-top:4px}
-  .foot{text-align:center;font-size:11px;margin-top:8px}
+  .foot{text-align:center;font-size:11px;margin-top:8px;padding-bottom:10px}
   @media print{@page{margin:0;size:80mm auto}}
 </style></head>
 <body>
@@ -70,6 +75,7 @@ export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
   ${payments ? `<div class="hr"></div><table>${payments}</table>` : ""}
   ${order.status === "cancelled" ? `<div class="foot"><b>** فاتورة ملغاة **</b></div>` : ""}
   <div class="foot">${esc(meta.footer ?? "شكرًا لزيارتك — Bulk Bun Healthy Sandwiches")}</div>
+  <div style="height: 65px;"></div>
   <script>window.onload=function(){window.focus();window.print();setTimeout(function(){window.close()},400)}</script>
 </body></html>`;
 
