@@ -95,9 +95,23 @@ function PosScreen() {
     }
     setOpenShiftSubmitting(true);
     try {
-      await startShiftOnServer({ data: { openingCash: cash } });
+      const res = await startShiftOnServer({ data: { openingCash: cash } });
       toast.success("تم بدء الوردية وتكلفة الدرج بنجاح!");
-      const active = await fetchCurrentShift({});
+      
+      // تهيئة الوردية محلياً لتجنب تأخير أو تعليق السيرفر في جلب الوردية مباشرة بعد الحفظ
+      const active = {
+        id: res.shiftId,
+        user_id: user?.id ?? "unknown",
+        user_name: user?.name ?? "كاشير",
+        opened_at: new Date().toISOString(),
+        opening_cash: cash,
+        expected_cash: cash,
+        actual_cash: 0,
+        difference: 0,
+        status: "open",
+        notes: null
+      };
+      
       setActiveShift(active);
     } catch (err: any) {
       toast.error(err.message || "فشل فتح الوردية");
