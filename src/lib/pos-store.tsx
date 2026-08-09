@@ -1407,25 +1407,26 @@ export function PosProvider({ children }: { children: ReactNode }) {
       startShift: () => setState((s) => ({ ...s, shiftStartedAt: Date.now() })),
       setActiveShift: (shift) => setState((s) => ({ ...s, activeShift: shift })),
       saveOrder: (order) => {
-        let saved: Order = { ...order, orderNo: order.orderNo ?? 0 } as Order;
+        const exists = state.orders.some((o) => o.id === order.id);
+        const prev = state.orders.find((o) => o.id === order.id);
+        const orderNo = order.orderNo ?? prev?.orderNo ?? state.nextOrderNo;
+
+        const saved: Order = {
+          ...order,
+          orderNo,
+          shiftId: order.shiftId || state.activeShift?.id || undefined,
+          updatedAt: Date.now(),
+        } as Order;
+
         setState((s) => {
-          const exists = s.orders.some((o) => o.id === order.id);
-          const prev = s.orders.find((o) => o.id === order.id);
           const delta = usageDelta(s, prev?.lines ?? [], order.lines);
           if (exists) {
-            saved = {
-              ...(s.orders.find((o) => o.id === order.id) as Order),
-              ...order,
-              updatedAt: Date.now(),
-            } as Order;
             const next = {
               ...s,
               orders: s.orders.map((o) => (o.id === order.id ? saved : o)),
             };
             return applyStock(next, delta, "sale", undefined, saved.orderNo);
           }
-          const orderNo = order.orderNo ?? s.nextOrderNo;
-          saved = { ...order, orderNo, shiftId: order.shiftId || s.activeShift?.id || undefined, updatedAt: Date.now() } as Order;
           const next = {
             ...s,
             orders: [saved, ...s.orders],
