@@ -1102,87 +1102,87 @@ function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-
-                  {/* سجل الورديات والدرج */}
-                  <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur space-y-4">
-                    <h3 className="text-xs font-black text-primary flex items-center gap-2">
-                      💼 سجل الورديات وجرد درج النقدية الكاشير
-                    </h3>
-                    <div className="overflow-x-auto w-full">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-muted-foreground border-b border-white/5">
-                            <th className="py-2 text-start">الكاشير</th>
-                            <th className="py-2 text-start">تاريخ البدء</th>
-                            <th className="py-2 text-start">تاريخ الإقفال</th>
-                            <th className="py-2 text-end">المبلغ الافتتاحي</th>
-                            <th className="py-2 text-end">المتوقع بالدرج</th>
-                            <th className="py-2 text-end">الفعلي بالدرج</th>
-                            <th className="py-2 text-end">العجز / الزيادة</th>
-                            <th className="py-2 text-end">ملاحظات الجرد</th>
-                            <th className="py-2 text-end">إجراء</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {shiftsList.map((s: any) => {
-                            const diff = s.difference ?? 0;
-                            return (
-                              <tr key={s.id} className="border-b border-white/5">
-                                <td className="py-2.5 font-extrabold text-foreground">{s.user_name}</td>
-                                <td className="py-2.5 text-muted-foreground">
-                                  {new Date(s.opened_at).toLocaleString("ar-EG", { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </td>
-                                <td className="py-2.5 text-muted-foreground">
-                                  {s.closed_at 
-                                    ? new Date(s.closed_at).toLocaleString("ar-EG", { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                    : <span className="text-primary font-bold">وردية مفتوحة 🟢</span>
-                                  }
-                                </td>
-                                <td className="py-2.5 text-end font-bold">{EGP(s.opening_cash)}</td>
-                                <td className="py-2.5 text-end font-bold text-muted-foreground">{EGP(s.expected_cash)}</td>
-                                <td className="py-2.5 text-end font-bold">
-                                  {s.closed_at ? EGP(s.actual_cash ?? 0) : "-"}
-                                </td>
-                                <td className="py-2.5 text-end">
-                                  {s.closed_at ? (
-                                    <span className={cn(
-                                      "font-black text-xs",
-                                      diff < 0 ? "text-destructive" : diff > 0 ? "text-amber-500" : "text-emerald-500"
-                                    )}>
-                                      {diff === 0 ? "متطابق" : EGP(diff)}
-                                    </span>
-                                  ) : "-"}
-                                </td>
-                                <td className="py-2.5 text-end text-[10px] text-muted-foreground max-w-[8rem] truncate" title={s.notes || ""}>
-                                  {s.notes || "-"}
-                                </td>
-                                <td className="py-2.5 text-end">
-                                  <button
-                                    onClick={() => handleDeleteShift(s.id)}
-                                    className="text-destructive/50 hover:text-destructive transition-colors p-1"
-                                    title="حذف هذا السجل"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          {!shiftsList.length && (
-                            <tr>
-                              <td colSpan={9} className="text-center py-12 text-muted-foreground">
-                                لا توجد ورديات مسجلة بعد.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
                 </>
               ) : (
                 <div className="text-center py-16 text-muted-foreground text-xs">فشل تحميل بيانات التقارير</div>
               )}
+
+              {/* سجل الورديات والدرج */}
+              <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur space-y-4">
+                <h3 className="text-xs font-black text-primary flex items-center gap-2">
+                  💼 سجل الورديات وجرد درج النقدية الكاشير
+                </h3>
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-muted-foreground border-b border-white/5">
+                        <th className="py-2 text-start">الكاشير</th>
+                        <th className="py-2 text-start">تاريخ البدء</th>
+                        <th className="py-2 text-start">تاريخ الإقفال</th>
+                        <th className="py-2 text-end">المبلغ الافتتاحي</th>
+                        <th className="py-2 text-end">المتوقع بالدرج</th>
+                        <th className="py-2 text-end">الفعلي بالدرج</th>
+                        <th className="py-2 text-end">العجز / الزيادة</th>
+                        <th className="py-2 text-end">ملاحظات الجرد</th>
+                        <th className="py-2 text-end">إجراء</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shiftsList.map((s: any) => {
+                        const diff = s.difference ?? 0;
+                        return (
+                          <tr key={s.id} className="border-b border-white/5">
+                            <td className="py-2.5 font-extrabold text-foreground">{s.user_name}</td>
+                            <td className="py-2.5 text-muted-foreground">
+                              {new Date(s.opened_at).toLocaleString("ar-EG", { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="py-2.5 text-muted-foreground">
+                              {s.closed_at 
+                                ? new Date(s.closed_at).toLocaleString("ar-EG", { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : <span className="text-primary font-bold">وردية مفتوحة 🟢</span>
+                              }
+                            </td>
+                            <td className="py-2.5 text-end font-bold">{EGP(s.opening_cash)}</td>
+                            <td className="py-2.5 text-end font-bold text-muted-foreground">{EGP(s.expected_cash)}</td>
+                            <td className="py-2.5 text-end font-bold">
+                              {s.closed_at ? EGP(s.actual_cash ?? 0) : "-"}
+                            </td>
+                            <td className="py-2.5 text-end">
+                              {s.closed_at ? (
+                                <span className={cn(
+                                  "font-black text-xs",
+                                  diff < 0 ? "text-destructive" : diff > 0 ? "text-amber-500" : "text-emerald-500"
+                                )}>
+                                  {diff === 0 ? "متطابق" : EGP(diff)}
+                                </span>
+                              ) : "-"}
+                            </td>
+                            <td className="py-2.5 text-end text-[10px] text-muted-foreground max-w-[8rem] truncate" title={s.notes || ""}>
+                              {s.notes || "-"}
+                            </td>
+                            <td className="py-2.5 text-end">
+                              <button
+                                onClick={() => handleDeleteShift(s.id)}
+                                className="text-destructive/50 hover:text-destructive transition-colors p-1"
+                                title="حذف هذا السجل"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {!shiftsList.length && (
+                        <tr>
+                          <td colSpan={9} className="text-center py-12 text-muted-foreground">
+                            لا توجد ورديات مسجلة بعد.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </TabsContent>
 
             {/* 2. HR & SALARIES TAB */}
