@@ -19,6 +19,7 @@ import {
   Wallet,
   Key,
   ShoppingBag,
+  RefreshCw,
 } from "lucide-react";
 import {
   Bar,
@@ -619,6 +620,18 @@ function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {
+              void loadData();
+              void loadReports();
+            }}
+            variant="outline"
+            className="inline-flex items-center gap-2 bg-[#0b1411]/60 border-white/5 hover:bg-[#12221d] rounded-xl px-3 py-2 text-xs font-bold text-foreground transition-all duration-200"
+          >
+            <RefreshCw className={cn("h-4 w-4 text-primary", (loading || reportsLoading) && "animate-spin")} />
+            <span>تحديث 🔄</span>
+          </Button>
+
           <Link
             to="/"
             className="inline-flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200"
