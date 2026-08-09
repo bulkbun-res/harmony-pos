@@ -84,7 +84,8 @@ function PosScreen() {
       }
     };
     void checkShift();
-  }, [fetchCurrentShift, setActiveShift]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOpenShift = async (e: React.FormEvent) => {
     e.preventDefault();
