@@ -73,6 +73,7 @@ import {
   backupDatabaseFn,
   restoreDatabaseFn,
   wipeDatabaseFn,
+  getRecentShiftsWithDetailsFn,
 } from "@/lib/admin.functions";
 import { createUserFn, listUsersFn, toggleUserFn, deleteUserFn, updateUserPasswordFn, deleteUserShiftsFn } from "@/lib/auth.functions";
 import { listShiftsFn, deleteShiftFn } from "@/lib/shift.functions";
@@ -204,6 +205,7 @@ function AdminDashboard() {
   const fetchReports = useServerFn(getDetailedReportsFn);
   const fetchShifts = useServerFn(listShiftsFn);
   const removeShift = useServerFn(deleteShiftFn);
+  const fetchRecentShifts = useServerFn(getRecentShiftsWithDetailsFn);
 
   const backupDB = useServerFn(backupDatabaseFn);
   const restoreDB = useServerFn(restoreDatabaseFn);
@@ -232,6 +234,20 @@ function AdminDashboard() {
       toast.error(err.message || "تعذر تحميل النسخة الاحتياطية", { id: toastId });
     } finally {
       setDbSubmitting(false);
+    }
+  };
+
+  // دالة جلب الورديات الأخيرة لآخر يومين لعرض المبيعات والأرباح والأصناف
+  const handleOpenRecentShifts = async () => {
+    setRecentShiftsLoading(true);
+    setRecentShiftsModalOpen(true);
+    try {
+      const res = await fetchRecentShifts({});
+      setRecentShifts(res);
+    } catch (err) {
+      toast.error("تعذر تحميل مبيعات الورديات");
+    } finally {
+      setRecentShiftsLoading(false);
     }
   };
 
@@ -321,6 +337,12 @@ function AdminDashboard() {
   
   // بوب أب مبيعات الأصناف التفصيلية اليوم
   const [itemsSoldModalOpen, setItemsSoldModalOpen] = useState(false);
+  
+  // حالات بوب أب مبيعات الورديات وتفاصيلها لآخر يومين
+  const [recentShifts, setRecentShifts] = useState<any[]>([]);
+  const [recentShiftsLoading, setRecentShiftsLoading] = useState(false);
+  const [recentShiftsModalOpen, setRecentShiftsModalOpen] = useState(false);
+  const [selectedShiftDetails, setSelectedShiftDetails] = useState<any | null>(null);
   
   const [loading, setLoading] = useState(true);
 
@@ -718,10 +740,15 @@ function AdminDashboard() {
                   onClick={() => setItemsSoldModalOpen(true)}
                 />
                 <MetricCard
-                  title="أرباح اليوم الصافية (تقديرية)"
-                  value={EGP(metrics?.today?.netProfit ?? 0)}
-                  sub="شاملة خصم 35% تكلفة خامات"
-                  icon={<Activity className="h-5 w-5 text-emerald-500" />}
+                  title="مبيعات الورديات"
+                  value={EGP(
+                    recentShifts.length > 0 
+                      ? recentShifts.reduce((acc, curr) => acc + (curr.totalSales || 0), 0)
+                      : metrics?.today?.sales ?? 0
+                  )}
+                  sub="تفاصيل مبيعات ورديات آخر يومين (اضغط للتفاصيل 📊)"
+                  icon={<History className="h-5 w-5 text-emerald-500" />}
+                  onClick={handleOpenRecentShifts}
                 />
                 <MetricCard
                   title="مصاريف اليوم"
@@ -1968,6 +1995,137 @@ function AdminDashboard() {
             <Button
               type="button"
               onClick={() => setItemsSoldModalOpen(false)}
+              className="h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 px-6"
+            >
+              إغلاق
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* نافذة مبيعات الورديات لآخر يومين */}
+      <Dialog open={recentShiftsModalOpen} onOpenChange={(v) => {
+        setRecentShiftsModalOpen(v);
+        if (!v) setSelectedShiftDetails(null);
+      }}>
+        <DialogContent className="max-w-md bg-[#0b1411] border-white/5 rounded-3xl text-right p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-primary flex items-center gap-2 justify-end">
+              ⏱️ مبيعات ورديات آخر يومين
+            </DialogTitle>
+            <DialogDescription className="text-right text-xs text-muted-foreground mt-1">
+              {selectedShiftDetails 
+                ? `تفاصيل وردية الكاشير: ${selectedShiftDetails.userName}`
+                : "استعرض المبيعات والأرباح وتفاصيل الأصناف لكل وردية خلال آخر يومين."
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {recentShiftsLoading ? (
+            <div className="flex h-48 items-center justify-center">
+              <div className="text-center space-y-3">
+                <div className="h-8 w-8 border-3 border-primary border-t-transparent animate-spin rounded-full mx-auto"></div>
+                <p className="text-xs text-muted-foreground">جاري تحميل الورديات...</p>
+              </div>
+            </div>
+          ) : selectedShiftDetails ? (
+            // شاشة تفاصيل الوردية المحددة
+            <div className="my-4 space-y-4 text-right">
+              <button 
+                onClick={() => setSelectedShiftDetails(null)}
+                className="text-xs text-primary font-bold hover:underline flex items-center gap-1 justify-end ml-auto"
+              >
+                <span>العودة لقائمة الورديات 🔙</span>
+              </button>
+
+              <div className="bg-[#050908] border border-white/5 rounded-2xl p-4 space-y-3 text-xs">
+                <div className="flex justify-between">
+                  <span className="font-extrabold text-foreground">{EGP(selectedShiftDetails.totalSales)}</span>
+                  <span className="text-muted-foreground">مبيعات الوردية:</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-extrabold text-emerald-500">{EGP(selectedShiftDetails.profit)}</span>
+                  <span className="text-muted-foreground">صافي الأرباح (تقديري 65%):</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold text-foreground">
+                    {selectedShiftDetails.status === "open" ? "مفتوحة 🟢" : "مغلقة 🔴"}
+                  </span>
+                  <span className="text-muted-foreground">الحالة:</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold text-foreground text-left">{new Date(selectedShiftDetails.openedAt).toLocaleString('ar-EG')}</span>
+                  <span className="text-muted-foreground">تاريخ الفتح:</span>
+                </div>
+                {selectedShiftDetails.closedAt && (
+                  <div className="flex justify-between">
+                    <span className="font-bold text-foreground text-left">{new Date(selectedShiftDetails.closedAt).toLocaleString('ar-EG')}</span>
+                    <span className="text-muted-foreground">تاريخ الإغلاق:</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-primary border-b border-white/5 pb-2">🍔 الأصناف المباعة في الوردية</h4>
+                <div className="max-h-[30vh] overflow-y-auto divide-y divide-white/5">
+                  {selectedShiftDetails.itemsSold && selectedShiftDetails.itemsSold.length > 0 ? (
+                    selectedShiftDetails.itemsSold.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center py-2.5 text-xs">
+                        <span className="font-extrabold text-foreground bg-[#0f1b17] border border-white/5 rounded-xl px-3 py-1.5 min-w-[3rem] text-center text-primary">
+                          {item.qty} قطعة
+                        </span>
+                        <span className="font-bold text-foreground text-right">{item.name}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground text-xs">
+                      لم يتم بيع أي أصناف في هذه الوردية.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // شاشة قائمة الورديات لآخر يومين
+            <div className="my-4 max-h-[60vh] overflow-y-auto space-y-2 text-right">
+              {recentShifts && recentShifts.length > 0 ? (
+                <div className="divide-y divide-white/5">
+                  {recentShifts.map((shift: any) => (
+                    <div 
+                      key={shift.id} 
+                      onClick={() => setSelectedShiftDetails(shift)}
+                      className="py-3 flex justify-between items-center cursor-pointer hover:bg-[#12221d]/40 rounded-xl px-2 transition-all duration-200"
+                    >
+                      <div className="text-left text-[10px] text-muted-foreground space-y-1">
+                        <span className="font-black text-primary text-xs block">{EGP(shift.totalSales)}</span>
+                        <span>{new Date(shift.openedAt).toLocaleDateString('ar-EG')}</span>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <span className="font-extrabold text-foreground block text-xs">
+                          {shift.userName} {shift.status === "open" && <span className="text-[10px] text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md font-bold">نشطة 🟢</span>}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          كاش البداية: {EGP(shift.openingCash)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground text-xs">
+                  لا توجد ورديات مسجلة خلال آخر يومين.
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              onClick={() => {
+                setRecentShiftsModalOpen(false);
+                setSelectedShiftDetails(null);
+              }}
               className="h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 px-6"
             >
               إغلاق

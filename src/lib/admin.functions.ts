@@ -574,3 +574,66 @@ export const wipeDatabaseFn = createServerFn({ method: "POST" }).handler(async (
 
   return { ok: true };
 });
+
+export const getRecentShiftsWithDetailsFn = createServerFn({ method: "GET" }).handler(async () => {
+  await assertAdmin();
+  const db = await getD1();
+
+  // جلب الورديات لآخر يومين من تاريخ اللحظة الحالية
+  const shiftsResult = await db
+    .prepare(
+      `SELECT * FROM shifts 
+       WHERE opened_at >= datetime('now', '-2 days') 
+       ORDER BY opened_at DESC`
+    )
+    .all();
+
+  const shifts = (shiftsResult.results ?? []) as any[];
+  const shiftsWithDetails = [];
+
+  for (const s of shifts) {
+    // 1. حساب مبيعات الوردية
+    const salesRow = await db
+      .prepare(
+        `SELECT COALESCE(SUM(total), 0) as total_sales 
+         FROM sales_orders 
+         WHERE status = 'paid' AND shift_id = ?`
+      )
+      .bind(s.id)
+      .first<{ total_sales: number }>();
+
+    const totalSales = salesRow?.total_sales ?? 0;
+    const profit = totalSales * 0.65; // خصم 35% تكلفة مواد خام (الربح الصافي التقديري 65%)
+
+    // 2. حساب تفاصيل السندوتشات والأصناف المباعة في هذه الوردية
+    const itemsResult = await db
+      .prepare(
+        `SELECT name, SUM(qty) as qty 
+         FROM sales_order_items i
+         JOIN sales_orders o ON i.order_id = o.id
+         WHERE o.status = 'paid' AND o.shift_id = ?
+         GROUP BY name
+         ORDER BY qty DESC`
+      )
+      .bind(s.id)
+      .all<{ name: string; qty: number }>();
+
+    shiftsWithDetails.push({
+      id: s.id,
+      userName: s.user_name,
+      openedAt: s.opened_at,
+      closedAt: s.closed_at,
+      status: s.status,
+      openingCash: s.opening_cash,
+      expectedCash: s.expected_cash,
+      actualCash: s.actual_cash,
+      difference: s.difference,
+      notes: s.notes,
+      totalSales,
+      profit,
+      itemsSold: itemsResult.results ?? [],
+    });
+  }
+
+  return shiftsWithDetails;
+});
