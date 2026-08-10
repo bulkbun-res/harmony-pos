@@ -8,6 +8,7 @@ import { PosHeader } from "@/components/pos/PosHeader";
 import { ItemTile } from "@/components/pos/ItemTile";
 import { Button } from "@/components/ui/button";
 import { usePos } from "@/lib/pos-store";
+import { useMenuPublisher } from "@/lib/use-online-orders";
 import { TILE_COLORS, type TileColor } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/layout")({
 
 function LayoutDesigner() {
   const { state, updateItem, reorderItem, resetAll } = usePos();
+  const { publish, publishing } = useMenuPublisher();
   const groups = [...state.groups].sort((a, b) => a.order - b.order);
   const [activeGroup, setActiveGroup] = useState<string>(groups[0]?.id ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -69,12 +71,20 @@ function LayoutDesigner() {
 
       <div className="flex flex-1 flex-col gap-3 p-3 lg:flex-row lg:p-4">
         <main className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-            <p className="font-extrabold text-primary">وضع التصميم المباشر</p>
-            <p className="text-muted-foreground">
-              اضغط على أي مربع لتحديده، اسحبه بإصبعك أو بالماوس لتغيير مكانه، ثم غيّر حجمه أو شكله
-              أو لونه من اللوحة الجانبية.
-            </p>
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <p className="font-extrabold text-primary">وضع التصميم وتعديل مظهر المربعات 🎨</p>
+              <p className="text-muted-foreground">
+                اضغط على أي مربع لتحديده، اسحبه بالماوس لتغيير مكانه، وغيّر حجمه أو شكله أو لونه من اللوحة الجانبية.
+              </p>
+            </div>
+            <Button
+              onClick={() => void publish(true)}
+              disabled={publishing}
+              className="bg-primary hover:bg-primary/95 text-primary-foreground font-black px-6 py-2.5 rounded-xl shrink-0 shadow-lg transition-all duration-200"
+            >
+              {publishing ? "جاري حفظ التنسيق..." : "حفظ تعديلات التخطيط 💾"}
+            </Button>
           </div>
 
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
