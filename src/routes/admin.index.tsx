@@ -123,6 +123,7 @@ interface AdminMetrics {
     expenses: number;
     wasteCount: number;
     netProfit: number;
+    itemsSold?: Array<{ name: string; qty: number }>;
   };
   paymentMethods: Array<{ payment_method: string; value: number }>;
   salesTrend: Array<{ date: string; sales: number; cost: number }>;
