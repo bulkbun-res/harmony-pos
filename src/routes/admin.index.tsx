@@ -55,6 +55,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   createEmployeeFn,
@@ -317,6 +318,9 @@ function AdminDashboard() {
   const [targetUserId, setTargetUserId] = useState("");
   const [newPasswordVal, setNewPasswordVal] = useState("");
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  
+  // بوب أب مبيعات الأصناف التفصيلية اليوم
+  const [itemsSoldModalOpen, setItemsSoldModalOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
 
@@ -709,8 +713,9 @@ function AdminDashboard() {
                 <MetricCard
                   title="مبيعات اليوم"
                   value={EGP(metrics?.today?.sales ?? 0)}
-                  sub={`عدد الفواتير: ${metrics?.today?.ordersCount ?? 0}`}
+                  sub={`عدد الفواتير: ${metrics?.today?.ordersCount ?? 0} (اضغط للتفاصيل 📊)`}
                   icon={<DollarSign className="h-5 w-5 text-primary" />}
+                  onClick={() => setItemsSoldModalOpen(true)}
                 />
                 <MetricCard
                   title="أرباح اليوم الصافية (تقديرية)"
@@ -895,6 +900,7 @@ function AdminDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="0">اليوم (يومي) 📅</SelectItem>
                       <SelectItem value="7">آخر 7 أيام (أسبوعي)</SelectItem>
                       <SelectItem value="30">آخر 30 يوم (شهري)</SelectItem>
                       <SelectItem value="90">آخر 90 يوم (ربع سنوي)</SelectItem>
@@ -1926,6 +1932,49 @@ function AdminDashboard() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* نافذة تفاصيل الأصناف المباعة اليوم */}
+      <Dialog open={itemsSoldModalOpen} onOpenChange={setItemsSoldModalOpen}>
+        <DialogContent className="max-w-md bg-[#0b1411] border-white/5 rounded-3xl text-right p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-primary flex items-center gap-2 justify-end">
+              🍔 حركة السندوتشات والأصناف المباعة اليوم
+            </DialogTitle>
+            <DialogDescription className="text-right text-xs text-muted-foreground mt-1">
+              قائمة تفصيلية بالكميات المباعة من كل صنف منذ بداية اليوم وحتى الآن.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-4 max-h-[60vh] overflow-y-auto space-y-2 text-right">
+            {metrics?.today?.itemsSold && metrics.today.itemsSold.length > 0 ? (
+              <div className="divide-y divide-white/5">
+                {metrics.today.itemsSold.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center py-3 text-xs">
+                    <span className="font-extrabold text-foreground bg-[#0f1b17] border border-white/5 rounded-xl px-3 py-1.5 min-w-[3rem] text-center text-primary">
+                      {item.qty} قطعة
+                    </span>
+                    <span className="font-bold text-foreground text-right">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground text-xs">
+                لم يتم بيع أي أصناف اليوم بعد.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              onClick={() => setItemsSoldModalOpen(false)}
+              className="h-11 rounded-2xl font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 px-6"
+            >
+              إغلاق
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1935,11 +1984,18 @@ interface MetricCardProps {
   value: string;
   sub: string;
   icon: React.ReactNode;
+  onClick?: () => void;
 }
 
-function MetricCard({ title, value, sub, icon }: MetricCardProps) {
+function MetricCard({ title, value, sub, icon, onClick }: MetricCardProps) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur shadow-lg flex justify-between items-start">
+    <div 
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border border-white/5 bg-[#0b1411]/60 p-4 backdrop-blur shadow-lg flex justify-between items-start",
+        onClick && "cursor-pointer hover:bg-[#12221d]/80 hover:border-primary/20 transition-all duration-200"
+      )}
+    >
       <div className="space-y-1">
         <p className="text-xs font-bold text-muted-foreground">{title}</p>
         <p className="text-xl font-black text-foreground">{value}</p>

@@ -40,6 +40,19 @@ export const getAdminMetricsFn = createServerFn({ method: "GET" }).handler(async
     .bind(todayStr)
     .first<{ count: number }>();
 
+  // 3.5. الأصناف المباعة اليوم بالتفصيل لمعرفة حركة اليوم
+  const itemsSoldToday = await db
+    .prepare(
+      `SELECT name, SUM(qty) as qty 
+       FROM sales_order_items i
+       JOIN sales_orders o ON i.order_id = o.id
+       WHERE o.status = 'paid' AND date(o.created_at) = ?
+       GROUP BY name
+       ORDER BY qty DESC`,
+    )
+    .bind(todayStr)
+    .all<{ name: string; qty: number }>();
+
   // 4. المبيعات حسب طريقة الدفع
   const paymentMethods = await db
     .prepare(
@@ -77,6 +90,7 @@ export const getAdminMetricsFn = createServerFn({ method: "GET" }).handler(async
       wasteCount: wasteToday?.count ?? 0,
       netProfit:
         (salesToday?.total ?? 0) - (expensesToday?.total ?? 0) - (salesToday?.total ?? 0) * 0.35, // 35% estimated food cost
+      itemsSold: (itemsSoldToday.results ?? []) as Array<{ name: string; qty: number }>,
     },
     paymentMethods: (paymentMethods.results ?? []) as Array<{
       payment_method: string;
