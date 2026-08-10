@@ -1813,16 +1813,16 @@ function AdminDashboard() {
                     يمكنك تحميل نسخة احتياطية كاملة من قاعدة البيانات الحالية (تشمل المبيعات، الورديات، المخزن، الموظفين والحسابات) بصيغة ملف JSON وحفظها على جهازك للرجوع إليها في أي وقت أو استعادتها.
                   </p>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <div className="flex flex-col gap-3 pt-2">
                     <Button
                       onClick={handleBackupDownload}
                       disabled={dbSubmitting}
-                      className="flex-1 h-12 rounded-xl font-extrabold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2"
+                      className="w-full h-12 rounded-xl font-extrabold bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2 text-xs"
                     >
                       📥 تنزيل نسخة احتياطية (.json)
                     </Button>
 
-                    <div className="relative flex-1">
+                    <div className="relative w-full">
                       <input
                         type="file"
                         accept=".json"
@@ -1836,7 +1836,7 @@ function AdminDashboard() {
                         variant="outline"
                         onClick={() => document.getElementById("restore-upload-input")?.click()}
                         disabled={dbSubmitting}
-                        className="w-full h-12 rounded-xl font-extrabold border-primary/20 text-primary hover:bg-primary/10 flex items-center justify-center gap-2"
+                        className="w-full h-12 rounded-xl font-extrabold border-primary/20 text-primary hover:bg-primary/10 flex items-center justify-center gap-2 text-xs"
                       >
                         📤 استعادة من نسخة احتياطية
                       </Button>
