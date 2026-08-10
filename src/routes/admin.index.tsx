@@ -74,6 +74,7 @@ import {
   restoreDatabaseFn,
   wipeDatabaseFn,
   getRecentShiftsWithDetailsFn,
+  resetFinancialsFn,
 } from "@/lib/admin.functions";
 import { createUserFn, listUsersFn, toggleUserFn, deleteUserFn, updateUserPasswordFn, deleteUserShiftsFn } from "@/lib/auth.functions";
 import { listShiftsFn, deleteShiftFn } from "@/lib/shift.functions";
@@ -210,11 +211,13 @@ function AdminDashboard() {
   const backupDB = useServerFn(backupDatabaseFn);
   const restoreDB = useServerFn(restoreDatabaseFn);
   const wipeDB = useServerFn(wipeDatabaseFn);
+  const resetFinancials = useServerFn(resetFinancialsFn);
 
   const { resetAll } = usePos();
   const [dbSubmitting, setDbSubmitting] = useState(false);
   const [wipeConfirm1, setWipeConfirm1] = useState(false);
   const [wipeConfirm2, setWipeConfirm2] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
 
   // دالة تحميل نسخة احتياطية محلية
   const handleBackupDownload = async () => {
@@ -248,6 +251,25 @@ function AdminDashboard() {
       toast.error("تعذر تحميل مبيعات الورديات");
     } finally {
       setRecentShiftsLoading(false);
+    }
+  };
+
+  // دالة تصفير الحسابات المالية (مبيعات، مصاريف، ورديات، وسلف) بدون مسح المنتجات أو المخزن أو الموظفين
+  const handleResetFinancials = async () => {
+    setDbSubmitting(true);
+    const toastId = toast.loading("جاري تصفير البيانات المالية...");
+    try {
+      await resetFinancials({});
+      // مسح كاش المتصفح المحلي لضمان مزامنة البيانات المالية الصفرية
+      localStorage.removeItem("bulkbun-pos-v1");
+      toast.success("تم تصفير الحسابات والمعاملات المالية بنجاح 💸", { id: toastId });
+      setResetConfirm(false);
+      // إعادة تحميل الصفحة لجلب الحالة الصفرية النظيفة
+      window.location.reload();
+    } catch (err: any) {
+      toast.error(err.message || "تعذر تصفير البيانات المالية", { id: toastId });
+    } finally {
+      setDbSubmitting(false);
     }
   };
 
@@ -1780,7 +1802,7 @@ function AdminDashboard() {
 
             {/* 6. DATABASE BACKUP & WIPE TAB */}
             <TabsContent value="database" className="space-y-6 mt-4">
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {/* النسخ الاحتياطي والاستعادة */}
                 <section className="rounded-2xl border border-white/5 bg-[#0b1411]/60 p-5 backdrop-blur space-y-4">
                   <h2 className="text-base font-extrabold flex items-center gap-2 text-primary">
@@ -1818,6 +1840,51 @@ function AdminDashboard() {
                         📤 استعادة من نسخة احتياطية
                       </Button>
                     </div>
+                  </div>
+                </section>
+
+                {/* تصفير الحسابات المالية فقط */}
+                <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 backdrop-blur space-y-4">
+                  <h2 className="text-base font-extrabold flex items-center gap-2 text-amber-500">
+                    💸 تصفير البيانات المالية فقط
+                  </h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    سيؤدي هذا الإجراء إلى مسح سجلات المبيعات، الفواتير، المصاريف، الورديات، والمسحوبات المالية لتصفير الإيرادات والأرباح بالكامل وتسهيل بداية محاسبة جديدة.
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <span className="text-amber-500 font-bold block">
+                      (ملاحظة أمان: سيتم الحفاظ بالكامل على المنيو، الأصناف، الأسعار، المكونات، المخزن الحالي، والموظفين والحسابات دون أي حذف).
+                    </span>
+                  </p>
+
+                  <div className="pt-2">
+                    {!resetConfirm ? (
+                      <Button
+                        onClick={() => setResetConfirm(true)}
+                        disabled={dbSubmitting}
+                        className="w-full h-12 rounded-xl font-black bg-amber-600 hover:bg-amber-700 text-white flex items-center justify-center gap-2"
+                      >
+                        💸 تصفير الحسابات والمالية
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setResetConfirm(false)}
+                          disabled={dbSubmitting}
+                          variant="ghost"
+                          className="flex-1 h-12 rounded-xl font-bold"
+                        >
+                          إلغاء
+                        </Button>
+                        <Button
+                          onClick={handleResetFinancials}
+                          disabled={dbSubmitting}
+                          className="flex-1 h-12 rounded-xl font-black bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          {dbSubmitting ? "جاري التصفير..." : "نعم، تصفير المالية"}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </section>
 

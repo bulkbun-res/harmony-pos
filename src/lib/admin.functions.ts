@@ -637,3 +637,29 @@ export const getRecentShiftsWithDetailsFn = createServerFn({ method: "GET" }).ha
 
   return shiftsWithDetails;
 });
+
+export const resetFinancialsFn = createServerFn({ method: "POST" }).handler(async () => {
+  const adminUser = await getCurrentUser();
+  if (!adminUser || adminUser.role !== "admin") {
+    throw new Error("غير مصرح لك بالدخول");
+  }
+  const db = await getD1();
+
+  const tablesToClear = [
+    "sales_order_items",
+    "sales_orders",
+    "expenses",
+    "shifts",
+    "salary_transactions",
+    "online_orders",
+  ];
+
+  for (const table of tablesToClear) {
+    await db.prepare(`DELETE FROM ${table}`).run();
+  }
+
+  // إعادة تسلسل الفواتير إلى البداية 5001
+  await db.prepare("UPDATE order_seq SET next_no = 5001 WHERE id = 1").run();
+
+  return { ok: true };
+});
