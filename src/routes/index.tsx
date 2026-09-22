@@ -261,16 +261,19 @@ function PosScreen() {
     });
     toast.success(`تم تحصيل الفاتورة #${saved.orderNo} — ${label} — ${EGP(due)}`);
     
-    // طباعة الفاتورة تلقائياً للـ XPrinter بعد الدفع
-    printReceipt(saved, {
-      title: "فاتورة كاشير",
-    });
-
+    // إغلاق نافذة الدفع وتصفير السلة فوراً لاستقبال الزبون التالي
+    setPayOpen(false);
     setLines([]);
     setDiscount(0);
-    setPayOpen(false);
     setEditing(null);
     if (editId) void navigate({ to: "/", search: {} });
+
+    // تشغيل الطباعة الحرارية بعد إغلاق النافذة بسلاسة
+    setTimeout(() => {
+      printReceipt(saved, {
+        title: "فاتورة كاشير",
+      });
+    }, 100);
   };
 
   const handlePrintDraft = () => {
@@ -964,7 +967,7 @@ function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" onCloseAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>تحصيل الفاتورة</DialogTitle>
         </DialogHeader>
