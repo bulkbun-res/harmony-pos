@@ -113,6 +113,10 @@ import imgIcedCoffee from "@/assets/online-menu/others/drinks-iced-coffee.webp";
 import imgIcedLatte from "@/assets/online-menu/others/drinks-iced-latte.webp";
 import imgIcedMocha from "@/assets/online-menu/others/drinks-iced-mocha.webp";
 import imgFrappe from "@/assets/online-menu/others/drinks-frappe.webp";
+import imgEspresso from "@/assets/online-menu/others/drinks-espresso.webp";
+import imgLemon from "@/assets/online-menu/others/drinks-lemon.webp";
+import imgAffogato from "@/assets/online-menu/others/drinks-affogato.webp";
+import imgHerbs from "@/assets/online-menu/others/drinks-herbs.webp";
 
 export interface SandwichBreadImages {
   defaultHero: string;
@@ -196,24 +200,28 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "dc-orange": imgOrange,
   "dh-tea": imgTea,
   "dh-coffee": imgCoffee,
-  "dh-espresso-s": imgCoffee,
-  "dh-espresso-d": imgCoffee,
+  "dh-espresso-s": imgEspresso,
+  "dh-espresso-d": imgEspresso,
   "dh-cappuccino": imgCappuccino,
-  "dh-american": imgCoffee,
+  "dh-american": imgEspresso,
   "dh-latte": imgLatte,
   "dh-flatwhite": imgLatte,
   "dh-macchiato": imgCappuccino,
-  "dh-herbs": imgTea,
-  "dh-celery": imgTea,
+  "dh-herbs": imgHerbs,
+  "dh-celery": imgHerbs,
   "dc-water": imgWater,
   "dc-redbull": imgRedBull,
   "dc-vcola": imgVCola,
+  "dc-suntop": imgOrange,
+  "dc-affogato": imgAffogato,
+  "ra9r2bka": imgLemon,
   "x2sg8vjt": imgMojito,
   "b4zcwfpm": imgMatcha,
   "af5sx3h3": imgIcedCoffee,
   "694shfte": imgIcedLatte,
   "lke0p4f9": imgIcedMocha,
   "gvs637lq": imgFrappe,
+  "d68edibr": imgFrappe,
 };
 
 /**
