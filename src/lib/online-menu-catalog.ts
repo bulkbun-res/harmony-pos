@@ -91,6 +91,8 @@ import potTortilla from "@/assets/online-menu/sandwiches/healthy-potato/tortilla
 
 // ─── 2. صور الأصناف الأخرى (مكرونة، سلطة، بطاطس، مشروبات) ─────────────────────
 import imgPastaChicken from "@/assets/online-menu/others/pasta-chicken.webp";
+import imgPastaShrimp from "@/assets/online-menu/others/pasta-shrimp.webp";
+import imgMealMashChicken from "@/assets/online-menu/others/meal-mash-chicken.webp";
 import imgSaladCaesar from "@/assets/online-menu/others/salad-caesar.webp";
 import imgFriesLarge from "@/assets/online-menu/others/fries-large.webp";
 import imgFriesSmall from "@/assets/online-menu/others/fries-small.webp";
@@ -188,8 +190,8 @@ export const SANDWICH_IMAGES_MAP: Record<string, SandwichBreadImages> = {
 /** قاموس الأصناف الأخرى (مكرونة، سلطات، بطاطس، مشروبات) */
 export const OTHER_ITEMS_MAP: Record<string, string> = {
   "pa-chicken": imgPastaChicken,
-  "my8503ka": imgPastaChicken,
-  "7lhky7lf": imgPastaChicken,
+  "my8503ka": imgPastaShrimp,
+  "7lhky7lf": imgMealMashChicken,
   "sa-caesar": imgSaladCaesar,
   "hyx4k58m": imgFriesLarge,
   "2hihobhf": imgFriesSmall,
