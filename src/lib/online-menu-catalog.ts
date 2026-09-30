@@ -116,6 +116,7 @@ import imgIcedLatte from "@/assets/online-menu/others/drinks-iced-latte.webp";
 import imgIcedMocha from "@/assets/online-menu/others/drinks-iced-mocha.webp";
 import imgFrappe from "@/assets/online-menu/others/drinks-frappe.webp";
 import imgEspresso from "@/assets/online-menu/others/drinks-espresso.webp";
+import imgEspressoShot from "@/assets/online-menu/others/drinks-espresso-shot.webp";
 import imgLemon from "@/assets/online-menu/others/drinks-lemon.webp";
 import imgAffogato from "@/assets/online-menu/others/drinks-affogato.webp";
 import imgHerbs from "@/assets/online-menu/others/drinks-herbs.webp";
@@ -202,8 +203,8 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "dc-orange": imgOrange,
   "dh-tea": imgTea,
   "dh-coffee": imgCoffee,
-  "dh-espresso-s": imgEspresso,
-  "dh-espresso-d": imgEspresso,
+  "dh-espresso-s": imgEspressoShot,
+  "dh-espresso-d": imgEspressoShot,
   "dh-cappuccino": imgCappuccino,
   "dh-american": imgEspresso,
   "dh-latte": imgLatte,
