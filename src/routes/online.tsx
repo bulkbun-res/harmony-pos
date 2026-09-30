@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import QRCode from "qrcode";
 import {
   Ban,
   ChefHat,
   CheckCircle2,
   Clock,
+  Copy,
+  Download,
+  ExternalLink,
   Minus,
   Pencil,
   Plus,
@@ -110,11 +112,16 @@ function OnlineScreen() {
   }, [refresh]);
 
   useEffect(() => {
-    void QRCode.toDataURL(PUBLIC_MENU_URL, {
-      width: 420,
-      margin: 1,
-      color: { dark: "#0b1a12", light: "#ffffff" },
-    }).then(setQr);
+    void import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(PUBLIC_MENU_URL, {
+          width: 420,
+          margin: 1,
+          color: { dark: "#0b1a12", light: "#ffffff" },
+        }),
+      )
+      .then(setQr)
+      .catch((e) => console.error("Error generating QR:", e));
   }, []);
 
   // الطلب يفضل في القائمة النشطة لحد ما يتدفع فعلاً (حتى لو اتسلّم)
@@ -487,17 +494,61 @@ function OnlineScreen() {
                 className="mx-auto h-auto w-full max-w-[15rem] rounded-xl bg-white p-2"
               />
             )}
-            <p className="mt-2 break-all text-[10px] text-muted-foreground">{menuUrl}</p>
+            <p className="mt-2 break-all text-[11px] font-mono text-muted-foreground bg-secondary/50 p-1.5 rounded-lg border border-border/50">{menuUrl}</p>
             <div className="mt-3 flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  className="h-9 text-xs font-bold gap-1.5 cursor-pointer"
+                  onClick={() => {
+                    navigator.clipboard.writeText(menuUrl);
+                    toast.success("تم نسخ رابط المنيو بنجاح!");
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" /> نسخ الرابط
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  className="h-9 text-xs font-bold gap-1.5 cursor-pointer"
+                  asChild
+                >
+                  <a href={menuUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" /> فتح المنيو
+                  </a>
+                </Button>
+              </div>
+
+              {qr && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  className="h-9 text-xs font-bold gap-1.5 cursor-pointer"
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = qr;
+                    a.download = "bulkbun-menu-qr.png";
+                    a.click();
+                    toast.success("تم بدء تنزيل كود الـ QR");
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" /> تنزيل صورة الـ QR للطباعة
+                </Button>
+              )}
+
               <Button
-                className="h-11 font-extrabold"
+                className="h-11 font-extrabold cursor-pointer"
                 disabled={publishing}
                 onClick={() => void publish(true)}
               >
                 <UploadCloud className="h-4 w-4" />
-                {publishing ? "جاري النشر…" : "نشر المنيو الحالي"}
+                {publishing ? "جاري النشر…" : "نشر وتحديث المنيو للعملاء"}
               </Button>
-              <Button variant="secondary" className="h-10" onClick={() => window.print()}>
+              <Button variant="secondary" className="h-10 cursor-pointer" onClick={() => window.print()}>
                 طباعة الكود
               </Button>
             </div>

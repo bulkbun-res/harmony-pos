@@ -15,7 +15,10 @@ import {
 import { toast } from "sonner";
 
 import logo from "@/assets/bulk-bun-logo.jpeg";
-import { resolveItemImage } from "@/lib/menu-images";
+import {
+  resolveOnlineItemImage,
+  SANDWICH_IMAGES_MAP,
+} from "@/lib/online-menu-catalog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +64,13 @@ export const Route = createFileRoute("/menu")({
 
 const STORAGE_KEY = "bulkbun-online-order";
 
+const BREAD_OPTIONS = [
+  { key: "french", label: "خبز فرنسي", shortLabel: "فرنسي", icon: "🥖" },
+  { key: "wheat", label: "قمح كامل", shortLabel: "قمح", icon: "🌾" },
+  { key: "brown", label: "خبز سن", shortLabel: "سن", icon: "🥪" },
+  { key: "tortilla", label: "تورتيلا", shortLabel: "تورتيلا", icon: "🫓" },
+];
+
 function MenuScreen() {
   const loadMenu = useServerFn(getPublicMenu);
   const submitOrder = useServerFn(placeOrder);
@@ -77,6 +87,7 @@ function MenuScreen() {
   const [sending, setSending] = useState(false);
   const [ticket, setTicket] = useState<{ id: string; token: string } | null>(null);
   const [order, setOrder] = useState<CustomerOrderView | null>(null);
+  const [selectedBreads, setSelectedBreads] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let alive = true;
@@ -136,19 +147,32 @@ function MenuScreen() {
   useEffect(() => {
     if (!menu.items.length) return;
     setCart((prev) => {
-      const next = prev.filter((l) => menu.items.find((i) => i.id === l.itemId)?.available);
+      const next = prev.filter((l) => {
+        const baseId = l.itemId.includes("-") ? l.itemId.split("-").slice(0, 2).join("-") : l.itemId;
+        const found = menu.items.find((i) => i.id === l.itemId || i.id === baseId);
+        return found?.available;
+      });
       if (next.length !== prev.length) toast.error("في صنف بقى غير متاح واتشال من طلبك");
       return next.length === prev.length ? prev : next;
     });
   }, [menu.items]);
 
-  const add = (item: PublicMenuItem) => {
+  const add = (item: PublicMenuItem, chosenBreadKey?: string) => {
+    const isSandwich = Boolean(SANDWICH_IMAGES_MAP[item.id]);
+    const breadKey = chosenBreadKey || selectedBreads[item.id] || (isSandwich ? "french" : "");
+    const breadOption = BREAD_OPTIONS.find((b) => b.key === breadKey);
+    const breadLabel = isSandwich && breadOption ? breadOption.label : "";
+
+    const rawName = item.id === "sl-turkish" ? "تركي مدخن" : item.name;
+    const lineName = breadLabel ? `${rawName} (${breadLabel})` : rawName;
+    const lineId = breadLabel ? `${item.id}-${breadKey}` : item.id;
+
     setCart((prev) => {
-      const found = prev.find((l) => l.itemId === item.id);
-      if (found) return prev.map((l) => (l.itemId === item.id ? { ...l, qty: l.qty + 1 } : l));
-      return [...prev, { itemId: item.id, name: item.name, unitPrice: item.price, qty: 1 }];
+      const found = prev.find((l) => l.itemId === lineId);
+      if (found) return prev.map((l) => (l.itemId === lineId ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { itemId: lineId, name: lineName, unitPrice: item.price, qty: 1 }];
     });
-    toast.success(`تمت إضافة ${item.name}`);
+    toast.success(`تمت إضافة ${lineName}`);
   };
 
   const setQty = (itemId: string, delta: number) =>
@@ -213,31 +237,31 @@ function MenuScreen() {
           alt="شعار Bulk Bun"
           width={44}
           height={44}
-          className="h-11 w-11 rounded-xl object-cover ring-2 ring-primary/40"
+          className="h-11 w-11 rounded-xl object-cover ring-2 ring-primary/40 shadow-sm"
         />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-extrabold brand-gradient-text">BULK BUN</h1>
-          <p className="truncate text-[11px] text-muted-foreground">
-            ساندويتشات صحية — اطلب من موبايلك
+          <h1 className="truncate text-lg font-black brand-gradient-text tracking-wide">BULK BUN</h1>
+          <p className="truncate text-[11px] font-bold text-muted-foreground">
+            Healthy Sandwiches & Balanced Meals
           </p>
         </div>
         {order?.status === "rejected" && (
-          <span className="rounded-lg bg-destructive/20 px-2 py-1 text-[11px] font-bold text-destructive">
+          <span className="rounded-lg bg-destructive/20 px-2.5 py-1 text-[11px] font-bold text-destructive">
             طلبك السابق اتلغى
           </span>
         )}
       </header>
 
-      <div className="sticky top-[68px] z-10 flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-4 py-2 backdrop-blur">
+      <div className="sticky top-[68px] z-10 flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur scrollbar-none">
         {[{ id: "all", name: "الكل" }, ...groups].map((g) => (
           <button
             key={g.id}
             onClick={() => setGroup(g.id)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition-colors",
+              "shrink-0 rounded-full px-4 py-1.5 text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer shadow-sm",
               group === g.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary/60 text-muted-foreground",
+                ? "bg-primary text-primary-foreground scale-105 shadow-md shadow-primary/20"
+                : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground",
             )}
           >
             {g.name}
@@ -245,63 +269,121 @@ function MenuScreen() {
         ))}
       </div>
 
-      <main className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <main className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-w-7xl mx-auto">
         {loading && (
-          <p className="col-span-full py-20 text-center text-sm text-muted-foreground">
-            جاري تحميل المنيو…
-          </p>
+          <div className="col-span-full py-24 text-center">
+            <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <p className="text-sm font-bold text-muted-foreground">جاري تحميل المنيو اللحظي…</p>
+          </div>
         )}
         {!loading && items.length === 0 && (
-          <p className="col-span-full py-20 text-center text-sm text-muted-foreground">
-            المنيو مش متاح دلوقتي، برجاء المحاولة بعد قليل.
-          </p>
+          <div className="col-span-full py-24 text-center rounded-2xl border border-dashed border-border p-8 bg-card/40">
+            <p className="text-base font-bold text-foreground mb-1">المنيو غير متاح حالياً</p>
+            <p className="text-xs text-muted-foreground">برجاء مراجعة الكاشير أو المحاولة بعد قليل.</p>
+          </div>
         )}
-        {items.map((item) => (
-          <article
-            key={item.id}
-            className={cn(
-              "overflow-hidden rounded-2xl border border-border bg-card",
-              !item.available && "opacity-60",
-            )}
-          >
-            <img
-              src={resolveItemImage(item)}
-              alt={item.name}
-              loading="lazy"
-              width={768}
-              height={576}
-              className="h-36 w-full object-cover"
-            />
-            <div className="space-y-2 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="text-base font-extrabold">{item.name}</h2>
-                <span className="shrink-0 text-base font-black text-primary">
-                  {EGP(item.price)}
-                </span>
-              </div>
-              {item.desc && <p className="text-xs text-muted-foreground">{item.desc}</p>}
-              {!!item.ingredients?.length && (
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  <span className="font-bold text-foreground">المكونات: </span>
-                  {item.ingredients.join(" • ")}
-                </p>
+        {items.map((item) => {
+          const isSandwich = Boolean(SANDWICH_IMAGES_MAP[item.id]);
+          const currentBread = selectedBreads[item.id] || "french";
+          const itemImg = resolveOnlineItemImage(item, currentBread);
+          const displayName = item.id === "sl-turkish" ? "تركي مدخن" : item.name;
+
+          return (
+            <article
+              key={item.id}
+              className={cn(
+                "group flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm hover:shadow-md transition-all duration-300 hover:border-primary/40",
+                !item.available && "opacity-60 grayscale",
               )}
-              <Button
-                className="h-10 w-full font-extrabold"
-                disabled={!item.available}
-                onClick={() => add(item)}
-              >
-                {item.available ? (
-                  <>
-                    <Plus className="h-4 w-4" /> أضف للطلب
-                  </>
-                ) : (
-                  "غير متاح حاليًا"
-                )}
-              </Button>
-            </div>
-          </article>
-        ))}
+            >
+              <div>
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted/40">
+                  <img
+                    src={itemImg}
+                    alt={displayName}
+                    loading="lazy"
+                    width={800}
+                    height={600}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <span className="absolute top-2.5 end-2.5 rounded-full bg-background/90 backdrop-blur-md px-3 py-1 text-sm font-black text-primary shadow-sm border border-border/60">
+                    {EGP(item.price)}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 p-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="text-base font-black text-foreground">{displayName}</h2>
+                  </div>
+
+                  {item.desc && (
+                    <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                      {item.desc}
+                    </p>
+                  )}
+
+                  {/* تبديل نوع الخبز التفاعلي للساندوتشات */}
+                  {isSandwich && (
+                    <div className="pt-1 border-t border-border/40">
+                      <p className="text-[11px] font-bold text-muted-foreground mb-1.5 flex items-center justify-between">
+                        <span>اختر نوع الخبز:</span>
+                        <span className="text-[10px] text-primary font-extrabold">
+                          {BREAD_OPTIONS.find((b) => b.key === currentBread)?.label}
+                        </span>
+                      </p>
+                      <div className="grid grid-cols-4 gap-1">
+                        {BREAD_OPTIONS.map((b) => {
+                          const isActive = currentBread === b.key;
+                          return (
+                            <button
+                              key={b.key}
+                              type="button"
+                              onClick={() =>
+                                setSelectedBreads((prev) => ({ ...prev, [item.id]: b.key }))
+                              }
+                              className={cn(
+                                "flex flex-col items-center justify-center rounded-lg py-1.5 px-1 text-[10px] font-bold transition-all border cursor-pointer",
+                                isActive
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm scale-100"
+                                  : "bg-secondary/40 text-muted-foreground border-border hover:bg-secondary hover:text-foreground",
+                              )}
+                            >
+                              <span className="text-xs leading-none mb-0.5">{b.icon}</span>
+                              <span className="truncate w-full text-center">{b.shortLabel}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!!item.ingredients?.length && !isSandwich && (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      <span className="font-bold text-foreground">المكونات: </span>
+                      {item.ingredients.join(" • ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3.5 pt-0">
+                <Button
+                  className="h-10 w-full font-extrabold shadow-sm gap-1.5 transition-all"
+                  disabled={!item.available}
+                  onClick={() => add(item, currentBread)}
+                >
+                  {item.available ? (
+                    <>
+                      <Plus className="h-4 w-4" /> أضف للطلب
+                    </>
+                  ) : (
+                    "غير متاح حاليًا"
+                  )}
+                </Button>
+              </div>
+            </article>
+          );
+        })}
       </main>
 
       {count > 0 && !cartOpen && (

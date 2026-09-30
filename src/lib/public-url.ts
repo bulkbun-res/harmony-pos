@@ -4,7 +4,7 @@
  */
 export const PUBLIC_SITE_URL = typeof window !== "undefined"
   ? window.location.origin
-  : "https://vibe-cashier-pos.lovable.app"; // افتراضي أثناء الـ SSR فقط
+  : "https://bulkbun.bulkbun-res.workers.dev"; // النطاق الحي لـ Bulk Bun
 
 export const PUBLIC_MENU_URL = `${PUBLIC_SITE_URL}/menu`;
 
