@@ -102,6 +102,7 @@ import imgMango from "@/assets/online-menu/others/drinks-mango.webp";
 import imgGuava from "@/assets/online-menu/others/drinks-guava.webp";
 import imgStrawberry from "@/assets/online-menu/others/drinks-strawberry.webp";
 import imgOrange from "@/assets/online-menu/others/drinks-orange.webp";
+import imgSuntop from "@/assets/online-menu/others/drinks-suntop.webp";
 import imgTea from "@/assets/online-menu/others/drinks-tea.webp";
 import imgCoffee from "@/assets/online-menu/others/drinks-coffee.webp";
 import imgCappuccino from "@/assets/online-menu/others/drinks-cappuccino.webp";
@@ -215,7 +216,7 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "dc-water": imgWater,
   "dc-redbull": imgRedBull,
   "dc-vcola": imgVCola,
-  "dc-suntop": imgOrange,
+  "dc-suntop": imgSuntop,
   "dc-affogato": imgAffogato,
   "ra9r2bka": imgLemon,
   "x2sg8vjt": imgMojito,
