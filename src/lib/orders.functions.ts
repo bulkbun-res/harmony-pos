@@ -39,8 +39,11 @@ export async function requireUser() {
 }
 
 export async function readSettings(db: D1Database): Promise<SettingsDTO> {
-  const res = await db.prepare("SELECT key, value FROM settings").all<{ key: string; value: string }>();
-  const map = new Map((res.results ?? []).map((r) => [r.key, Number(r.value)]));
+  const res = await db
+    .prepare("SELECT key, value FROM settings")
+    .all<{ key: string; value: string }>();
+  const map = new Map<string, number>();
+  for (const row of res.results ?? []) map.set(String(row.key), Number(row.value));
   return {
     tablesServicePct: map.get("tables_service_pct") ?? 0,
     talabatMarkupPct: map.get("talabat_markup_pct") ?? 20,

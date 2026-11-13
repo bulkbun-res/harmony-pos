@@ -8,6 +8,8 @@
 
 export type Channel = "counter" | "table" | "talabat";
 
+export type PaymentMethod = "cash" | "visa" | "vodafone" | "instapay";
+
 export type OrderFlowStatus = "open" | "paid" | "cancelled";
 
 export const CHANNELS: { id: Channel; label: string; short: string }[] = [
@@ -52,7 +54,7 @@ export interface OrderDTO {
   taxRate: number;
   tax: number;
   total: number;
-  paymentMethod: "cash" | "visa" | "vodafone" | "instapay" | null;
+  paymentMethod: PaymentMethod | null;
   paidAt: string | null;
   shiftId: string | null;
   userName: string | null;

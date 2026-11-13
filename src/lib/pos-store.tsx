@@ -1107,17 +1107,17 @@ export const defaultState = (): PosState => {
 
 export interface SaveOrderInput {
   channel: Channel;
-  lines: { itemId: string; qty: number; modifierIds?: string[]; note?: string }[];
-  discount?: number;
-  tableId?: string;
-  guests?: number;
-  externalRef?: string;
-  customerName?: string;
-  customerPhone?: string;
+  lines: { itemId: string; qty: number; modifierIds?: string[] | undefined; note?: string | undefined }[];
+  discount?: number | undefined;
+  tableId?: string | undefined;
+  guests?: number | undefined;
+  externalRef?: string | undefined;
+  customerName?: string | undefined;
+  customerPhone?: string | undefined;
   /** لو اتبعت، الفاتورة بتتحفظ مدفوعة على طول */
-  payNow?: PaymentMethod;
+  payNow?: PaymentMethod | undefined;
   /** مفتاح منع التكرار */
-  idempotencyKey?: string;
+  idempotencyKey?: string | undefined;
 }
 
 interface Ctx {

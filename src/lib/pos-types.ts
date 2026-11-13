@@ -88,7 +88,8 @@ export interface CartLine {
   modifiers: Modifier[];
 }
 
-export type PaymentMethod = "cash" | "vodafone" | "instapay" | "visa";
+export type { PaymentMethod } from "./orders-types";
+import type { PaymentMethod } from "./orders-types";
 
 export type OrderStatus = "open" | "paid" | "cancelled";
 
