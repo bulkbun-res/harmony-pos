@@ -20,7 +20,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
         if (user.role === "admin") {
           void navigate({ to: "/admin" });
         } else {
-          void navigate({ to: "/" });
+          void navigate({ to: "/", search: { order: undefined } });
         }
       }
     }

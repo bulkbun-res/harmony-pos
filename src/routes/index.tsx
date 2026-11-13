@@ -332,7 +332,7 @@ function PosScreen() {
     setEditing(null);
     setOpenOrderId(null);
     setTalabatRef("");
-    if (editId) void navigate({ to: "/", search: {} });
+    if (editId) void navigate({ to: "/", search: { order: undefined } });
   };
 
   const completeOrder = async (method: PaymentMethod) => {
@@ -459,6 +459,7 @@ function PosScreen() {
       openedAt: null,
       closedAt: null,
       externalRef: channel === "talabat" ? talabatRef : null,
+      idempotencyKey: null,
       lines: lines.map((l) => ({
         id: l.lineId,
         itemId: l.itemId,
@@ -485,7 +486,7 @@ function PosScreen() {
     setLines([]);
     setDiscount(0);
     setEditing(null);
-    void navigate({ to: "/", search: {} });
+    void navigate({ to: "/", search: { order: undefined } });
   };
 
   const gridRef = useRef<HTMLDivElement>(null);

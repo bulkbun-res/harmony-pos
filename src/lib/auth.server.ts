@@ -101,8 +101,8 @@ export async function loginUser(
 
   if (!user) return null;
 
-  const inputHash = await hashPassword(password, user.username as string);
-  if (inputHash !== user.password_hash) return null;
+  const inputHash = await hashPassword(password, user["username"] as string);
+  if (inputHash !== user["password_hash"]) return null;
 
   // إنشاء رمز جلسة فريد
   const sessionToken = crypto.randomUUID();
@@ -110,7 +110,7 @@ export async function loginUser(
   // تحديث الجلسة في قاعدة البيانات
   await db
     .prepare("UPDATE users SET session_token = ? WHERE id = ?")
-    .bind(sessionToken, user.id as string)
+    .bind(sessionToken, user["id"] as string)
     .run();
 
   // تعيين الكوكي (لمدة 7 أيام)
@@ -122,10 +122,10 @@ export async function loginUser(
   });
 
   return {
-    id: user.id as string,
-    username: user.username as string,
-    role: user.role as "admin" | "cashier",
-    name: user.name as string,
+    id: user["id"] as string,
+    username: user["username"] as string,
+    role: user["role"] as "admin" | "cashier",
+    name: user["name"] as string,
   };
 }
 

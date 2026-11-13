@@ -38,7 +38,7 @@ export const Route = createFileRoute("/orders")({
   ),
 });
 
-const fmtTime = (t: number) =>
+const fmtTime = (t: string | number) =>
   new Date(t).toLocaleString("ar-EG", {
     day: "2-digit",
     month: "2-digit",
@@ -228,20 +228,20 @@ function OrdersScreen() {
 
               <div className="flex-1 space-y-2 overflow-y-auto p-3">
                 {selected.lines.map((l) => (
-                  <div key={l.lineId} className="rounded-xl bg-secondary/50 p-2.5">
+                  <div key={l.id} className="rounded-xl bg-secondary/50 p-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold">
                           {l.qty} × {l.name}
                         </p>
-                        {l.modifiers.map((m) => (
-                          <p key={m.id} className="text-[11px] text-muted-foreground">
-                            + {m.name}
+                        {l.modifierNames.map((n) => (
+                          <p key={n} className="text-[11px] text-muted-foreground">
+                            + {n}
                           </p>
                         ))}
                       </div>
                       <p className="shrink-0 text-sm font-extrabold text-primary">
-                        {EGP((l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) * l.qty)}
+                        {EGP(l.lineTotal)}
                       </p>
                     </div>
                   </div>

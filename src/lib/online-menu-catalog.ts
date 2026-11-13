@@ -260,7 +260,7 @@ export function getInteractiveSandwichImage(itemId: string, selectedModifierName
  * يرجع الصورة المناسبة لأي صنف في المنيو الإلكتروني
  */
 export function resolveOnlineItemImage(
-  item: { id: string; groupId: string; image?: string },
+  item: { id: string; groupId: string; image?: string | undefined },
   selectedModifier?: string,
 ): string {
   // 1. إذا كان ساندوتش
@@ -274,7 +274,7 @@ export function resolveOnlineItemImage(
 
   // 3. رابط خارجي مباشر لو كان موجوداً
   if (item.image?.startsWith("http://") || item.image?.startsWith("https://")) {
-    return item.image;
+    return item.image as string;
   }
 
   // 4. صورة عامة كحل أخير

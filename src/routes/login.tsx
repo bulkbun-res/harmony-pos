@@ -30,7 +30,7 @@ function LoginPage() {
       if (user.role === "admin") {
         void navigate({ to: "/admin" });
       } else {
-        void navigate({ to: "/" });
+        void navigate({ to: "/", search: { order: undefined } });
       }
     }
   }, [user, loading, navigate]);
@@ -49,7 +49,7 @@ function LoginPage() {
       if (u.role === "admin") {
         void navigate({ to: "/admin" });
       } else {
-        void navigate({ to: "/" });
+        void navigate({ to: "/", search: { order: undefined } });
       }
     } catch (err: unknown) {
       const error = err as Error;

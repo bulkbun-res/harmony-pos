@@ -249,7 +249,7 @@ function SettingsPage() {
                     h: 1,
                     shape: "square",
                     color: iColor,
-                    image: iImage || undefined,
+                    ...(iImage ? { image: iImage } : {}),
                     modifiers: [],
                   });
                   setIName("");

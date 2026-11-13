@@ -1297,7 +1297,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
 
                 return {
                   ...s,
-                  groups: res.menu.groups,
+                  groups: res.menu.groups as unknown as Group[],
                   ingredients: mergedIngredients,
                   taxRate: 0,
                   serviceRate: 0,
@@ -1305,10 +1305,13 @@ export function PosProvider({ children }: { children: ReactNode }) {
                     const defaultItem = s.items.find((i) => i.id === dbItem.id);
                     return {
                       ...dbItem,
-                      w: dbItem.w ?? defaultItem?.w ?? 1,
-                      h: dbItem.h ?? defaultItem?.h ?? 1,
-                      shape: dbItem.shape ?? defaultItem?.shape ?? "square",
-                      color: dbItem.color ?? defaultItem?.color ?? "leaf",
+                      w: (dbItem as unknown as { w?: number }).w ?? defaultItem?.w ?? 1,
+                      h: (dbItem as unknown as { h?: number }).h ?? defaultItem?.h ?? 1,
+                      shape:
+                        (dbItem as unknown as { shape?: Item["shape"] }).shape ??
+                        defaultItem?.shape ??
+                        "square",
+                      color: (dbItem.color as Item["color"]) ?? defaultItem?.color ?? "leaf",
                       modifiers: dbItem.modifiers ?? defaultItem?.modifiers ?? [],
                       recipe: dbItem.recipe ?? defaultItem?.recipe ?? [],
                     };

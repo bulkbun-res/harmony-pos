@@ -124,7 +124,7 @@ export const getOrderStatus = createServerFn({ method: "POST" })
       .bind(data.id, data.token)
       .first<Record<string, unknown>>();
     if (!row) return null;
-    return toCustomerView(rowToOrderRow(row));
+    return toCustomerView(rowToOrderRow(row as unknown as Record<string, unknown>));
   });
 
 // ─── respondToProposal ────────────────────────────────────────────────────────

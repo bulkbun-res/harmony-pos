@@ -142,16 +142,32 @@ export const closeShiftFn = createServerFn({ method: "POST" })
     return { ok: true, difference };
   });
 
-export const getCurrentShiftFn = createServerFn({ method: "GET" }).handler(async () => {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  const db = await getD1();
-  const activeShift = await db
-    .prepare("SELECT * FROM shifts WHERE user_id = ? AND status = 'open'")
-    .bind(user.id)
-    .first();
-  return activeShift || null;
-});
+export interface ActiveShiftDTO {
+  id: string;
+  user_id: string;
+  user_name: string;
+  opened_at: string;
+  closed_at: string | null;
+  opening_cash: number;
+  expected_cash: number;
+  actual_cash: number;
+  difference: number;
+  status: string;
+  notes: string | null;
+}
+
+export const getCurrentShiftFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ActiveShiftDTO | null> => {
+    const user = await getCurrentUser();
+    if (!user) return null;
+    const db = await getD1();
+    const activeShift = await db
+      .prepare("SELECT * FROM shifts WHERE user_id = ? AND status = 'open'")
+      .bind(user.id)
+      .first<ActiveShiftDTO>();
+    return activeShift ?? null;
+  },
+);
 
 export const listShiftsFn = createServerFn({ method: "GET" }).handler(async () => {
   const user = await getCurrentUser();
