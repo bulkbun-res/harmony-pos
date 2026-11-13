@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getD1 } from "@/integrations/d1/client.server";
 import { getCurrentUser } from "./auth.server";
+import { cairoDateStr } from "./dates";
 
 // دالة التحقق من أن المستخدم الحالي هو مدير
 async function assertAdmin() {
@@ -12,16 +13,17 @@ async function assertAdmin() {
 }
 
 // ─── الإحصائيات والتقارير المالية ──────────────────────────────────────────────
+
 export const getAdminMetricsFn = createServerFn({ method: "GET" }).handler(async () => {
   await assertAdmin();
   const db = await getD1();
 
-  const todayStr = new Date().toISOString().split("T")[0]!;
+  const todayStr = cairoDateStr();
 
   // 1. المبيعات اليومية
   const salesToday = await db
     .prepare(
-      "SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales_orders WHERE status = 'paid' AND date(created_at) = ?",
+      "SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM orders WHERE status = 'paid' AND business_date = ?",
     )
     .bind(todayStr)
     .first<{ total: number; count: number }>();
@@ -44,41 +46,52 @@ export const getAdminMetricsFn = createServerFn({ method: "GET" }).handler(async
   const itemsSoldToday = await db
     .prepare(
       `SELECT name, SUM(qty) as qty 
-       FROM sales_order_items i
-       JOIN sales_orders o ON i.order_id = o.id
-       WHERE o.status = 'paid' AND date(o.created_at) = ?
+       FROM order_lines i
+       JOIN orders o ON i.order_id = o.id
+       WHERE o.status = 'paid' AND o.business_date = ?
        GROUP BY name
        ORDER BY qty DESC`,
     )
     .bind(todayStr)
     .all<{ name: string; qty: number }>();
 
+  // 3.6. توزيع مبيعات اليوم على القنوات
+  const channelsToday = await db
+    .prepare(
+      `SELECT channel, COUNT(*) as count, COALESCE(SUM(total), 0) as total
+         FROM orders
+        WHERE status = 'paid' AND business_date = ?
+        GROUP BY channel`,
+    )
+    .bind(todayStr)
+    .all<{ channel: string; count: number; total: number }>();
+
   // 4. المبيعات حسب طريقة الدفع
   const paymentMethods = await db
     .prepare(
-      "SELECT payment_method, SUM(total) as value FROM sales_orders WHERE status = 'paid' GROUP BY payment_method",
+      "SELECT payment_method, SUM(total) as value FROM orders WHERE status = 'paid' GROUP BY payment_method",
     )
     .all();
 
   // 5. منحنى المبيعات لآخر 30 يوم
   const salesTrend = await db
     .prepare(
-      `SELECT date(created_at) as date, SUM(total) as sales, SUM(subtotal * 0.4) as cost
-       FROM sales_orders 
-       WHERE status = 'paid' AND created_at >= date('now', '-30 days')
-       GROUP BY date(created_at)
-       ORDER BY date(created_at) ASC`,
+      `SELECT business_date as date, SUM(total) as sales, SUM(subtotal * 0.4) as cost
+       FROM orders 
+       WHERE status = 'paid' AND business_date >= date('now', '-30 days')
+       GROUP BY business_date
+       ORDER BY business_date ASC`,
     )
     .all();
 
-  // 6. أوقات الذروة (حسب الساعة لآخر 7 أيام)
+  // 6. أوقات الذروة (حسب الساعة لآخر 7 أيام) — بتوقيت القاهرة تقريبًا
   const peakHours = await db
     .prepare(
-      `SELECT strftime('%H:00', created_at) as hour, SUM(total) as value
-       FROM sales_orders
-       WHERE status = 'paid' AND created_at >= date('now', '-7 days')
-       GROUP BY strftime('%H', created_at)
-       ORDER BY strftime('%H', created_at) ASC`,
+      `SELECT strftime('%H:00', created_at, '+2 hours') as hour, SUM(total) as value
+       FROM orders
+       WHERE status = 'paid' AND business_date >= date('now', '-7 days')
+       GROUP BY strftime('%H', created_at, '+2 hours')
+       ORDER BY strftime('%H', created_at, '+2 hours') ASC`,
     )
     .all();
 
@@ -91,6 +104,7 @@ export const getAdminMetricsFn = createServerFn({ method: "GET" }).handler(async
       netProfit:
         (salesToday?.total ?? 0) - (expensesToday?.total ?? 0) - (salesToday?.total ?? 0) * 0.35, // 35% estimated food cost
       itemsSold: (itemsSoldToday.results ?? []) as Array<{ name: string; qty: number }>,
+      channels: (channelsToday.results ?? []) as Array<{ channel: string; count: number; total: number }>,
     },
     paymentMethods: (paymentMethods.results ?? []) as Array<{
       payment_method: string;
@@ -319,9 +333,9 @@ export const getDetailedReportsFn = createServerFn({ method: "GET" })
     const topItemsResult = await db
       .prepare(
         `SELECT name, SUM(qty) as total_qty, SUM(qty * unit_price) as total_sales
-         FROM sales_order_items i
-         JOIN sales_orders o ON i.order_id = o.id
-         WHERE o.status = 'paid' AND o.created_at >= date('now', ?)
+         FROM order_lines i
+         JOIN orders o ON i.order_id = o.id
+         WHERE o.status = 'paid' AND o.business_date >= date('now', ?)
          GROUP BY name
          ORDER BY total_qty DESC
          LIMIT 6`,
@@ -333,9 +347,9 @@ export const getDetailedReportsFn = createServerFn({ method: "GET" })
     const salesItemsResult = await db
       .prepare(
         `SELECT name, SUM(qty * unit_price) as total_sales
-         FROM sales_order_items i
-         JOIN sales_orders o ON i.order_id = o.id
-         WHERE o.status = 'paid' AND o.created_at >= date('now', ?)
+         FROM order_lines i
+         JOIN orders o ON i.order_id = o.id
+         WHERE o.status = 'paid' AND o.business_date >= date('now', ?)
          GROUP BY name`,
       )
       .bind(`-${data.days} days`)
@@ -365,8 +379,8 @@ export const getDetailedReportsFn = createServerFn({ method: "GET" })
     // 3. التقرير المالي الشامل
     const revenueResult = await db
       .prepare(
-        `SELECT COALESCE(SUM(total), 0) as total FROM sales_orders 
-         WHERE status = 'paid' AND created_at >= date('now', ?)`
+        `SELECT COALESCE(SUM(total), 0) as total FROM orders 
+         WHERE status = 'paid' AND business_date >= date('now', ?)`
       )
       .bind(`-${data.days} days`)
       .first<{ total: number }>();
@@ -455,8 +469,15 @@ export const backupDatabaseFn = createServerFn({ method: "POST" }).handler(async
     "attendance",
     "salary_transactions",
     "expenses",
-    "sales_orders",
-    "sales_order_items",
+    "orders",
+    "order_lines",
+    "counter_orders",
+    "table_orders",
+    "tables",
+    "talabat_orders",
+    "talabat_settlements",
+    "order_counters",
+    "settings",
     "inventory_logs",
     "shifts",
     "menu_snapshot",
@@ -483,8 +504,11 @@ export const restoreDatabaseFn = createServerFn({ method: "POST" })
     const db = await getD1();
 
     const tablesDeleteOrder = [
-      "sales_order_items",
-      "sales_orders",
+      "order_lines",
+      "counter_orders",
+      "table_orders",
+      "talabat_orders",
+      "orders",
       "attendance",
       "salary_transactions",
       "shifts",
@@ -503,8 +527,15 @@ export const restoreDatabaseFn = createServerFn({ method: "POST" })
       "attendance",
       "salary_transactions",
       "shifts",
-      "sales_orders",
-      "sales_order_items",
+      "orders",
+      "order_lines",
+      "counter_orders",
+      "table_orders",
+      "tables",
+      "talabat_orders",
+      "talabat_settlements",
+      "order_counters",
+      "settings",
       "expenses",
       "inventory_logs",
       "menu_snapshot",
@@ -551,8 +582,11 @@ export const wipeDatabaseFn = createServerFn({ method: "POST" }).handler(async (
   const db = await getD1();
 
   const tablesToClear = [
-    "sales_order_items",
-    "sales_orders",
+    "order_lines",
+    "counter_orders",
+    "table_orders",
+    "talabat_orders",
+    "orders",
     "inventory_logs",
     "shifts",
     "attendance",
@@ -596,7 +630,7 @@ export const getRecentShiftsWithDetailsFn = createServerFn({ method: "GET" }).ha
     const salesRow = await db
       .prepare(
         `SELECT COALESCE(SUM(total), 0) as total_sales 
-         FROM sales_orders 
+         FROM orders 
          WHERE status = 'paid' AND shift_id = ?`
       )
       .bind(s.id)
@@ -609,8 +643,8 @@ export const getRecentShiftsWithDetailsFn = createServerFn({ method: "GET" }).ha
     const itemsResult = await db
       .prepare(
         `SELECT name, SUM(qty) as qty 
-         FROM sales_order_items i
-         JOIN sales_orders o ON i.order_id = o.id
+         FROM order_lines i
+         JOIN orders o ON i.order_id = o.id
          WHERE o.status = 'paid' AND o.shift_id = ?
          GROUP BY name
          ORDER BY qty DESC`
@@ -646,8 +680,11 @@ export const resetFinancialsFn = createServerFn({ method: "POST" }).handler(asyn
   const db = await getD1();
 
   const tablesToClear = [
-    "sales_order_items",
-    "sales_orders",
+    "order_lines",
+    "counter_orders",
+    "table_orders",
+    "talabat_orders",
+    "orders",
     "expenses",
     "shifts",
     "salary_transactions",

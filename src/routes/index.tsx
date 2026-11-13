@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Minus, Plus, Printer, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -16,10 +16,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { usePos } from "@/lib/pos-store";
+import type { SaveOrderInput } from "@/lib/pos-store";
 import { useAuth } from "@/lib/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { openShiftFn, closeShiftFn, getCurrentShiftFn } from "@/lib/shift.functions";
-import { printReceipt } from "@/lib/print-receipt";
+import {
+  getPosSettingsFn,
+  getTableBoardFn,
+  getOrderFn,
+  addOrderLinesFn,
+  payOrderFn,
+} from "@/lib/orders.functions";
+import { CHANNELS, CHANNEL_LABEL, round2 } from "@/lib/orders-types";
+import type { Channel } from "@/lib/orders-types";
+import { printReceipt, receiptTitle } from "@/lib/print-receipt";
 import {
   EGP,
   PAYMENT_METHODS,
@@ -53,7 +63,7 @@ export const Route = createFileRoute("/")({
 });
 
 function PosScreen() {
-  const { state, saveOrder, setActiveShift } = usePos();
+  const { state, saveOrder, setActiveShift, refreshOrders } = usePos();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const { order: editId } = Route.useSearch();
@@ -153,6 +163,52 @@ function PosScreen() {
   const [modifierItem, setModifierItem] = useState<Item | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [editing, setEditing] = useState<Order | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // ── القنوات الثلاث ────────────────────────────────────────────────────────
+  const [channel, setChannel] = useState<Channel>("counter");
+  const [tableId, setTableId] = useState<string>("");
+  /** فاتورة ترابيزة مفتوحة بنضيف عليها */
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  const [talabatRef, setTalabatRef] = useState("");
+  const [tablesBoard, setTablesBoard] = useState<
+    { id: string; name: string; zone: string; seats: number; orderId: string | null; orderNo: number | null; total: number | null }[]
+  >([]);
+  const [posSettings, setPosSettings] = useState({
+    tablesServicePct: 0,
+    talabatMarkupPct: 20,
+    taxPct: 0,
+  });
+
+  const loadSettings = useServerFn(getPosSettingsFn);
+  const loadBoard = useServerFn(getTableBoardFn);
+  const loadOrderById = useServerFn(getOrderFn);
+  const addLinesServer = useServerFn(addOrderLinesFn);
+  const payOrderServer = useServerFn(payOrderFn);
+
+  useEffect(() => {
+    void loadSettings({})
+      .then((s) => setPosSettings(s))
+      .catch((e) => console.error("تعذر تحميل الإعدادات", e));
+  }, [loadSettings]);
+
+  const refreshBoard = useCallback(async () => {
+    try {
+      setTablesBoard(await loadBoard({}));
+    } catch (e) {
+      console.error("تعذر تحميل الترابيزات", e);
+    }
+  }, [loadBoard]);
+
+  useEffect(() => {
+    void refreshBoard();
+  }, [refreshBoard]);
+
+  // تحميل فواتير الوردية من السيرفر
+  useEffect(() => {
+    if (state.activeShift?.id) void refreshOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.activeShift?.id]);
 
   // استرجاع فاتورة سابقة للتعديل / الزيادة عليها
   const loadedRef = useRef<string | null>(null);
@@ -167,11 +223,28 @@ function PosScreen() {
     if (!o) return;
     loadedRef.current = editId;
     setEditing(o);
-    setLines(o.lines);
+    setChannel(o.channel);
+    setTableId(o.tableId ?? "");
+    setTalabatRef(o.externalRef ?? "");
     setDiscount(o.discount);
+    setLines(
+      o.lines.map((l) => ({
+        lineId: l.id,
+        itemId: l.itemId,
+        name: l.name,
+        unitPrice: l.basePrice,
+        qty: l.qty,
+        modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
+      })),
+    );
   }, [editId, state.orders]);
 
-  const orderNo = editing?.orderNo ?? state.nextOrderNo;
+  const orderNo = editing?.orderNo ?? null;
+
+  /** معامل القناة: طلبات +20% على كل سطر */
+  const markupPct = channel === "talabat" ? posSettings.talabatMarkupPct : 0;
+  const servicePct = channel === "table" ? posSettings.tablesServicePct : 0;
+  const taxPct = channel === "table" ? posSettings.taxPct : 0;
 
   const items = useMemo(() => {
     const q = search.trim();
@@ -226,74 +299,185 @@ function PosScreen() {
     );
 
   const lineTotal = (l: CartLine) =>
-    (l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) * l.qty;
+    round2(
+      (l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) *
+        (1 + markupPct / 100) *
+        l.qty,
+    );
 
-  const subtotal = lines.reduce((s, l) => s + lineTotal(l), 0);
-  const afterDiscount = Math.max(0, subtotal - discount);
-  const service = afterDiscount * state.serviceRate;
-  const tax = (afterDiscount + service) * state.taxRate;
-  const total = afterDiscount + service + tax;
+  const subtotal = round2(lines.reduce((s, l) => s + lineTotal(l), 0));
+  const afterDiscount = Math.max(0, round2(subtotal - discount));
+  const service = round2(afterDiscount * (servicePct / 100));
+  const tax = round2((afterDiscount + service) * (taxPct / 100));
+  const total = round2(afterDiscount + service + tax);
 
   const counts = lines.reduce<Record<string, number>>((acc, l) => {
     acc[l.itemId] = (acc[l.itemId] ?? 0) + l.qty;
     return acc;
   }, {});
 
-  const alreadyPaid = (editing?.payments ?? []).reduce((s, p) => s + p.amount, 0);
-  const due = Math.max(0, total - alreadyPaid);
+  const due = total;
 
-  const completeOrder = (method: PaymentMethod) => {
-    const label = PAYMENT_METHODS.find((p) => p.id === method)?.label;
-    const now = Date.now();
-    const saved = saveOrder({
-      id: editing?.id ?? Math.random().toString(36).slice(2, 10),
-      orderNo: editing?.orderNo,
-      createdAt: editing?.createdAt ?? now,
-      updatedAt: now,
-      status: "paid",
-      lines,
-      discount,
-      subtotal,
-      service,
-      tax,
-      total,
-      payments: [...(editing?.payments ?? []), { method, amount: due, at: now }],
-    });
-    toast.success(`تم تحصيل الفاتورة #${saved.orderNo} — ${label} — ${EGP(due)}`);
-    
-    // إغلاق نافذة الدفع وتصفير السلة فوراً لاستقبال الزبون التالي
+  const toInput = (ls: CartLine[]) =>
+    ls.map((l) => ({
+      itemId: l.itemId,
+      qty: l.qty,
+      modifierIds: l.modifiers.map((m) => m.id),
+    }));
+
+  const resetTicket = () => {
     setPayOpen(false);
     setLines([]);
     setDiscount(0);
     setEditing(null);
+    setOpenOrderId(null);
+    setTalabatRef("");
     if (editId) void navigate({ to: "/", search: {} });
+  };
 
-    // تشغيل الطباعة الحرارية بعد إغلاق النافذة بسلاسة
-    setTimeout(() => {
-      printReceipt(saved, {
-        title: "فاتورة كاشير",
-      });
-    }, 100);
+  const completeOrder = async (method: PaymentMethod) => {
+    if (!lines.length || saving) return;
+    const label = PAYMENT_METHODS.find((p) => p.id === method)?.label;
+    setSaving(true);
+    try {
+      let saved: Order;
+      if (openOrderId) {
+        await addLinesServer({ data: { orderId: openOrderId, lines: toInput(lines) } });
+        saved = await payOrderServer({
+          data: { orderId: openOrderId, paymentMethod: method, discount },
+        });
+      } else {
+        saved = await saveOrder({
+          channel,
+          lines: toInput(lines),
+          discount,
+          payNow: method,
+          tableId: channel === "table" ? tableId || undefined : undefined,
+          externalRef: channel === "talabat" ? talabatRef.trim() : undefined,
+        });
+      }
+
+      toast.success(`تم تحصيل الفاتورة #${saved.orderNo} — ${label} — ${EGP(saved.total)}`);
+
+      resetTicket();
+      void refreshBoard();
+
+      const toPrint = saved;
+      setTimeout(() => {
+        printReceipt(toPrint, { title: receiptTitle(toPrint.channel) });
+      }, 100);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر حفظ الفاتورة");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** حفظ الفاتورة على الترابيزة من غير دفع */
+  const saveOpenTable = async () => {
+    if (channel !== "table" || !tableId || !lines.length || saving) return;
+    setSaving(true);
+    try {
+      if (openOrderId) {
+        await addLinesServer({ data: { orderId: openOrderId, lines: toInput(lines) } });
+      } else {
+        const created = await saveOrder({
+          channel: "table",
+          lines: toInput(lines),
+          discount,
+          tableId,
+        });
+        setOpenOrderId(created.id);
+      }
+      setLines([]);
+      setDiscount(0);
+      toast.success("تم الحفظ على الترابيزة");
+      await refreshBoard();
+      if (tableId) {
+        // أعد تحميل الفاتورة المفتوحة عشان تبقى جاهزة للإضافة
+        const opened = tablesBoard.find((t) => t.id === tableId)?.orderId;
+        if (opened) setOpenOrderId(opened);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** اختيار ترابيزة: لو مفتوحة نحمّل فاتورتها */
+  const selectTable = async (id: string) => {
+    setTableId(id);
+    setEditing(null);
+    setLines([]);
+    setDiscount(0);
+    setOpenOrderId(null);
+    const board = tablesBoard.find((t) => t.id === id);
+    if (board?.orderId) {
+      try {
+        const o = await loadOrderById({ data: { orderId: board.orderId } });
+        setOpenOrderId(o.id);
+        setLines(
+          o.lines.map((l) => ({
+            lineId: l.id,
+            itemId: l.itemId,
+            name: l.name,
+            unitPrice: l.basePrice,
+            qty: l.qty,
+            modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
+          })),
+        );
+      } catch (e) {
+        toast.error("تعذر تحميل فاتورة الترابيزة");
+      }
+    }
   };
 
   const handlePrintDraft = () => {
     if (!lines.length) return;
     const draftOrder: Order = {
       id: editing?.id ?? "draft",
-      orderNo: orderNo,
-      createdAt: editing?.createdAt ?? Date.now(),
-      updatedAt: Date.now(),
-      status: editing?.status ?? "paid",
-      lines,
-      discount,
+      channel,
+      orderNo: editing?.orderNo ?? 0,
+      status: editing?.status ?? "open",
       subtotal,
+      discount,
+      serviceRate: servicePct,
       service,
+      taxRate: taxPct,
       tax,
       total,
-      payments: editing?.payments ?? [],
+      paymentMethod: null,
+      paidAt: null,
+      shiftId: state.activeShift?.id ?? null,
+      userName: user?.name ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tableId: channel === "table" ? tableId || null : null,
+      tableName: channel === "table" ? (tablesBoard.find((t) => t.id === tableId)?.name ?? null) : null,
+      guests: null,
+      openedAt: null,
+      closedAt: null,
+      externalRef: channel === "talabat" ? talabatRef : null,
+      lines: lines.map((l) => ({
+        id: l.lineId,
+        itemId: l.itemId,
+        name: l.name,
+        basePrice: round2(l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)),
+        unitPrice: round2(
+          (l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) * (1 + markupPct / 100),
+        ),
+        qty: l.qty,
+        lineTotal: lineTotal(l),
+        kind: "item" as const,
+        parentLineId: null,
+        modifierNames: l.modifiers.map((m) => m.name),
+        note: null,
+        voided: false,
+      })),
     };
     printReceipt(draftOrder, {
-      title: editing ? "تعديل فاتورة" : "مسودة طلب كاشير",
+      title: editing ? "تعديل فاتورة" : "مسودة",
     });
   };
 
@@ -316,18 +500,15 @@ function PosScreen() {
 
   const shiftTotals = useMemo(() => {
     const opening = state.activeShift?.opening_cash ?? 0;
-    const cash = shiftOrders
-      .filter((o) => o.payments[0]?.method === "cash")
-      .reduce((sum, o) => sum + o.total, 0);
-    const visa = shiftOrders
-      .filter((o) => o.payments[0]?.method === "visa")
-      .reduce((sum, o) => sum + o.total, 0);
-    const instapay = shiftOrders
-      .filter((o) => o.payments[0]?.method === "instapay")
-      .reduce((sum, o) => sum + o.total, 0);
-    const vodafone = shiftOrders
-      .filter((o) => o.payments[0]?.method === "vodafone")
-      .reduce((sum, o) => sum + o.total, 0);
+    const isTalabat = (o: Order) => o.channel === "talabat";
+    const sum = (fn: (o: Order) => boolean) =>
+      shiftOrders.filter(fn).reduce((s, o) => s + o.total, 0);
+
+    const cash = sum((o) => o.paymentMethod === "cash" && !isTalabat(o));
+    const visa = sum((o) => o.paymentMethod === "visa");
+    const instapay = sum((o) => o.paymentMethod === "instapay");
+    const vodafone = sum((o) => o.paymentMethod === "vodafone");
+    const talabat = sum(isTalabat);
 
     return {
       opening,
@@ -335,8 +516,9 @@ function PosScreen() {
       visa,
       instapay,
       vodafone,
+      talabat,
       expectedInDrawer: opening + cash,
-      totalSales: cash + visa + instapay + vodafone,
+      totalSales: cash + visa + instapay + vodafone + talabat,
     };
   }, [shiftOrders, state.activeShift]);
 
@@ -435,6 +617,80 @@ function PosScreen() {
       <div className="flex min-h-0 flex-1 flex-row gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4">
         {/* Items area */}
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          {/* ── تابات القنوات الثلاث ─────────────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-2">
+            {CHANNELS.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  setChannel(c.id);
+                  setEditing(null);
+                  setOpenOrderId(null);
+                  setLines([]);
+                  setDiscount(0);
+                  setTableId("");
+                  setTalabatRef("");
+                }}
+                className={cn(
+                  "h-10 rounded-xl px-4 text-sm font-black transition-all",
+                  channel === c.id
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "bg-card text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {c.short}
+              </button>
+            ))}
+            {channel === "talabat" && (
+              <span className="rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-extrabold text-amber-400">
+                أسعار +{posSettings.talabatMarkupPct}%
+              </span>
+            )}
+            {channel === "table" && posSettings.tablesServicePct > 0 && (
+              <span className="rounded-lg bg-primary/15 px-2 py-1 text-[11px] font-extrabold text-primary">
+                خدمة {posSettings.tablesServicePct}%
+              </span>
+            )}
+          </div>
+
+          {channel === "talabat" && (
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 text-xs font-bold text-muted-foreground">
+                رقم أوردر طلبات
+              </span>
+              <Input
+                value={talabatRef}
+                onChange={(e) => setTalabatRef(e.target.value)}
+                placeholder="مثال: 4471"
+                className="h-9 max-w-[12rem] rounded-xl bg-card text-sm"
+              />
+            </div>
+          )}
+
+          {channel === "table" && (
+            <div className="flex flex-wrap gap-2">
+              {tablesBoard.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => void selectTable(t.id)}
+                  className={cn(
+                    "flex min-w-[6.5rem] flex-col items-center rounded-xl border px-3 py-2 text-xs font-black transition-all",
+                    tableId === t.id
+                      ? "border-primary bg-primary/15 text-primary"
+                      : t.orderId
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                        : "border-white/10 bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span>{t.name}</span>
+                  <span className="text-[10px] font-bold opacity-80">
+                    {t.orderId ? EGP(t.total ?? 0) : "فاضية"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             <Input
               value={search}
@@ -489,7 +745,11 @@ function PosScreen() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-extrabold text-foreground">
-                فاتورة #{orderNo}
+                {editing
+                  ? `فاتورة #${editing.orderNo}`
+                  : openOrderId
+                    ? `ترابيزة مفتوحة${tableId ? ` — ${tablesBoard.find((t) => t.id === tableId)?.name ?? ""}` : ""}`
+                    : `فاتورة جديدة — ${CHANNEL_LABEL[channel]}`}
                 {editing && (
                   <span className="ms-2 rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-400">
                     تعديل فاتورة سابقة
@@ -566,26 +826,41 @@ function PosScreen() {
                 className="h-8 w-24 bg-background text-end"
               />
             </div>
-            <Row label={`خدمة ${Math.round(state.serviceRate * 100)}%`} value={EGP(service)} />
-            <Row label={`ضريبة ${Math.round(state.taxRate * 100)}%`} value={EGP(tax)} />
+            <Row label={`خدمة ${servicePct}%`} value={EGP(service)} />
+            <Row label={`ضريبة ${taxPct}%`} value={EGP(tax)} />
             <div className="mt-2 flex items-center justify-between rounded-xl bg-primary/15 px-3 py-2">
               <span className="font-extrabold">الإجمالي</span>
               <span className="text-xl font-black text-primary">{EGP(total)}</span>
             </div>
-            {editing && alreadyPaid > 0 && (
+            {false && (
               <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-3 py-1.5 text-xs">
-                <span className="text-muted-foreground">مدفوع سابقًا {EGP(alreadyPaid)}</span>
-                <span className="font-extrabold text-primary">المتبقي {EGP(due)}</span>
+                <span className="text-muted-foreground">مدفوع سابقًا</span>
+                <span className="font-extrabold text-primary">المتبقي</span>
               </div>
             )}
             <div className="mt-2 flex gap-2">
               <Button
                 className="h-12 flex-1 text-base font-extrabold"
-                disabled={!lines.length}
+                disabled={
+                  !lines.length ||
+                  saving ||
+                  (channel === "table" && !tableId) ||
+                  (channel === "talabat" && !talabatRef.trim())
+                }
                 onClick={() => setPayOpen(true)}
               >
-                {editing ? `تحصيل الفرق ${EGP(due)}` : "الدفع"}
+                {saving ? "جاري الحفظ…" : "الدفع"}
               </Button>
+              {channel === "table" && (
+                <Button
+                  variant="secondary"
+                  className="h-12 px-3 text-xs font-black"
+                  disabled={!lines.length || saving || !tableId}
+                  onClick={() => void saveOpenTable()}
+                >
+                  حفظ مفتوحة
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 className="h-12"

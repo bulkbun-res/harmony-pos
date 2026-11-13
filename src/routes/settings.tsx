@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePos } from "@/lib/pos-store";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  getPosSettingsFn,
+  updatePosSettingsFn,
+  listTablesFn,
+  saveTableFn,
+  deleteTableFn,
+} from "@/lib/orders.functions";
 import { useMenuPublisher } from "@/lib/use-online-orders";
 import { EGP, STOCK_UNITS, TILE_COLORS, type Item, type TileColor } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
@@ -568,31 +576,152 @@ function SettingsPage() {
 
           {/* GENERAL */}
           <TabsContent value="general" className="pt-4">
-            <section className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>نسبة الخدمة %</Label>
-                <Input
-                  type="number"
-                  value={Math.round(state.serviceRate * 100)}
-                  onChange={(e) =>
-                    update((s) => ({ ...s, serviceRate: (Number(e.target.value) || 0) / 100 }))
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>نسبة الضريبة %</Label>
-                <Input
-                  type="number"
-                  value={Math.round(state.taxRate * 100)}
-                  onChange={(e) =>
-                    update((s) => ({ ...s, taxRate: (Number(e.target.value) || 0) / 100 }))
-                  }
-                />
-              </div>
-            </section>
+            <ChannelsSettings />
           </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+function ChannelsSettings() {
+  const load = useServerFn(getPosSettingsFn);
+  const save = useServerFn(updatePosSettingsFn);
+  const listTables = useServerFn(listTablesFn);
+  const saveTable = useServerFn(saveTableFn);
+  const removeTable = useServerFn(deleteTableFn);
+
+  const [service, setService] = useState("0");
+  const [markup, setMarkup] = useState("20");
+  const [tax, setTax] = useState("0");
+  const [busy, setBusy] = useState(false);
+  const [tables, setTables] = useState<{ id: string; name: string; zone: string; seats: number }[]>([]);
+  const [newName, setNewName] = useState("");
+  const [newSeats, setNewSeats] = useState("4");
+
+  const refresh = useCallback(async () => {
+    try {
+      const [s1, t1] = await Promise.all([load({}), listTables({})]);
+      setService(String(s1.tablesServicePct));
+      setMarkup(String(s1.talabatMarkupPct));
+      setTax(String(s1.taxPct));
+      setTables(t1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر تحميل الإعدادات");
+    }
+  }, [load, listTables]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const doSave = async () => {
+    setBusy(true);
+    try {
+      await save({
+        data: {
+          tablesServicePct: Number(service) || 0,
+          talabatMarkupPct: Number(markup) || 0,
+          taxPct: Number(tax) || 0,
+        },
+      });
+      toast.success("تم حفظ إعدادات القنوات");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-1 text-base font-extrabold">إعدادات القنوات</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          نسبة الخدمة بتتطبق على الترابيزات بس. زيادة طلبات بتتدفن في سعر كل سطر.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>خدمة الترابيزات %</Label>
+            <Input type="number" value={service} onChange={(e) => setService(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>زيادة أسعار طلبات %</Label>
+            <Input type="number" value={markup} onChange={(e) => setMarkup(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>ضريبة الترابيزات %</Label>
+            <Input type="number" value={tax} onChange={(e) => setTax(e.target.value)} />
+          </div>
+        </div>
+        <Button className="mt-4 font-extrabold" disabled={busy} onClick={() => void doSave()}>
+          {busy ? "جاري الحفظ…" : "حفظ الإعدادات"}
+        </Button>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 text-base font-extrabold">الترابيزات</h2>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {tables.map((t) => (
+            <span
+              key={t.id}
+              className="flex items-center gap-2 rounded-full bg-secondary/60 px-3 py-1.5 text-xs font-bold"
+            >
+              {t.name} · {t.seats}
+              <button
+                className="text-destructive"
+                onClick={async () => {
+                  try {
+                    await removeTable({ data: { id: t.id } });
+                    await refresh();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "تعذر الحذف");
+                  }
+                }}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+          {!tables.length && (
+            <span className="text-xs text-muted-foreground">لا توجد ترابيزات بعد.</span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <Input
+            placeholder="اسم الترابيزة"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="h-9 w-48"
+          />
+          <Input
+            type="number"
+            placeholder="عدد الكراسي"
+            value={newSeats}
+            onChange={(e) => setNewSeats(e.target.value)}
+            className="h-9 w-28 text-end"
+          />
+          <Button
+            size="sm"
+            className="font-extrabold"
+            onClick={async () => {
+              if (!newName.trim()) return;
+              try {
+                await saveTable({
+                  data: { name: newName.trim(), seats: Number(newSeats) || 4, sort: tables.length + 1 },
+                });
+                setNewName("");
+                await refresh();
+                toast.success("تمت إضافة الترابيزة");
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "تعذر الإضافة");
+              }
+            }}
+          >
+            <Plus className="h-4 w-4" /> إضافة
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

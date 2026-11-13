@@ -1,0 +1,37 @@
+name: CI (typecheck + build)
+
+# بيتشغّل على GitHub Actions لأن جهاز التطوير 1GB RAM — البناء محتاج رام أكتر.
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: output
+          path: .output
+          retention-days: 3
+          if-no-files-found: ignore

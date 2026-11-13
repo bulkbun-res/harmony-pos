@@ -1,10 +1,11 @@
 import { EGP, PAYMENT_METHODS, type Order } from "./pos-types";
+import { CHANNEL_LABEL } from "./orders-types";
 
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
 
-const fmtDate = (t: number) =>
-  new Date(t).toLocaleString("ar-EG", {
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleString("ar-EG", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -23,23 +24,23 @@ export interface ReceiptMeta {
 export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
   const lines = order.lines
     .map((l) => {
-      const mods = l.modifiers
-        .map((m) => {
-          const prefix = m.name.startsWith("بدون") ? "" : "+ ";
-          return `<div class="mod">${prefix}${esc(m.name)}</div>`;
-        })
+      const mods = (l.modifierNames ?? [])
+        .map((n) => `<div class="mod">${n.startsWith("بدون") ? "" : "+ "}${esc(n)}</div>`)
         .join("");
-      const price = (l.unitPrice + l.modifiers.reduce((s, m) => s + m.price, 0)) * l.qty;
-      return `<tr><td>${l.qty} × ${esc(l.name)}${mods}</td><td class="num">${EGP(price)}</td></tr>`;
+      return `<tr><td>${l.qty} × ${esc(l.name)}${mods}</td><td class="num">${EGP(l.lineTotal)}</td></tr>`;
     })
     .join("");
 
-  const payments = order.payments
-    .map(
-      (p) =>
-        `<tr><td>${esc(PAYMENT_METHODS.find((m) => m.id === p.method)?.label ?? p.method)}</td><td class="num">${EGP(p.amount)}</td></tr>`,
-    )
-    .join("");
+  const payLabel = order.paymentMethod
+    ? (PAYMENT_METHODS.find((m) => m.id === order.paymentMethod)?.label ?? order.paymentMethod)
+    : "";
+
+  const channelLine =
+    order.channel === "table"
+      ? `ترابيزة — ${esc(order.tableName ?? "")}`
+      : order.channel === "talabat"
+        ? `طلبات — #${esc(order.externalRef ?? "")}`
+        : "كاشير";
 
   const html = `<!doctype html>
 <html dir="rtl" lang="ar"><head><meta charset="utf-8" />
@@ -64,6 +65,7 @@ export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
 <body>
   <h1>Bulk Bun — ${esc(meta.title ?? "فاتورة")}</h1>
   <div class="sub">فاتورة رقم #${order.orderNo}<br/>${fmtDate(order.createdAt)}</div>
+  <div class="sub">${channelLine}</div>
   ${meta.customer ? `<div class="sub">العميل: ${esc(meta.customer)}${meta.phone ? ` — ${esc(meta.phone)}` : ""}</div>` : ""}
   <div class="hr"></div>
   <table>${lines}</table>
@@ -71,11 +73,11 @@ export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
   <table>
     <tr><td>الإجمالي الفرعي</td><td class="num">${EGP(order.subtotal)}</td></tr>
     ${order.discount > 0 ? `<tr><td>خصم</td><td class="num">- ${EGP(order.discount)}</td></tr>` : ""}
-    <tr><td>خدمة</td><td class="num">${EGP(order.service)}</td></tr>
-    <tr><td>ضريبة</td><td class="num">${EGP(order.tax)}</td></tr>
+    ${order.service > 0 ? `<tr><td>خدمة ${order.serviceRate}%</td><td class="num">${EGP(order.service)}</td></tr>` : ""}
+    ${order.tax > 0 ? `<tr><td>ضريبة ${order.taxRate}%</td><td class="num">${EGP(order.tax)}</td></tr>` : ""}
   </table>
   <div class="total"><span>الإجمالي</span><span>${EGP(order.total)}</span></div>
-  ${payments ? `<div class="hr"></div><table>${payments}</table>` : ""}
+  ${payLabel ? `<div class="hr"></div><table><tr><td>${esc(payLabel)}</td><td class="num">${EGP(order.total)}</td></tr></table>` : ""}
   ${order.status === "cancelled" ? `<div class="foot"><b>** فاتورة ملغاة **</b></div>` : ""}
   <div class="foot">${esc(meta.footer ?? "شكرًا لزيارتك — Bulk Bun Healthy Sandwiches")}</div>
   <div style="height: 50px;"></div>
@@ -131,3 +133,10 @@ export function printReceipt(order: Order, meta: ReceiptMeta = {}) {
     return true;
   }
 }
+
+/** عنوان الفاتورة حسب القناة */
+export function receiptTitle(channel: Order["channel"]): string {
+  return channel === "talabat" ? "فاتورة طلبات" : channel === "table" ? "فاتورة صالة" : "فاتورة كاشير";
+}
+
+export { CHANNEL_LABEL };

@@ -1,10 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { syncOrderFn, syncInventoryLogFn } from "./sync.functions";
+import { syncInventoryLogFn } from "./sync.functions";
+import { createOrderFn, cancelOrderFn, listOrdersFn } from "./orders.functions";
+import type { Channel, PaymentMethod } from "./orders-types";
 import type {
   Group,
   Ingredient,
   Item,
+  Modifier,
   Order,
   PosState,
   StockMove,
@@ -1102,6 +1105,21 @@ export const defaultState = (): PosState => {
   };
 };
 
+export interface SaveOrderInput {
+  channel: Channel;
+  lines: { itemId: string; qty: number; modifierIds?: string[]; note?: string }[];
+  discount?: number;
+  tableId?: string;
+  guests?: number;
+  externalRef?: string;
+  customerName?: string;
+  customerPhone?: string;
+  /** لو اتبعت، الفاتورة بتتحفظ مدفوعة على طول */
+  payNow?: PaymentMethod;
+  /** مفتاح منع التكرار */
+  idempotencyKey?: string;
+}
+
 interface Ctx {
   state: PosState;
   ready: boolean;
@@ -1113,9 +1131,9 @@ interface Ctx {
   updateItem: (id: string, patch: Partial<Item>) => void;
   removeItem: (id: string) => void;
   reorderItem: (groupId: string, from: string, to: string) => void;
-  /** يحفظ فاتورة جديدة أو يحدّث فاتورة موجودة (استرجاع + زيادة أصناف) */
-  saveOrder: (order: Omit<Order, "orderNo"> & { orderNo?: number | undefined }) => Order;
-  cancelOrder: (id: string) => void;
+  /** يحفظ فاتورة على السيرفر ويرجّعها */
+  saveOrder: (input: SaveOrderInput) => Promise<Order>;
+  cancelOrder: (id: string, reason?: string) => Promise<void>;
   addIngredient: (data: Omit<Ingredient, "id">) => void;
   updateIngredient: (id: string, patch: Partial<Ingredient>) => void;
   removeIngredient: (id: string) => void;
@@ -1125,6 +1143,8 @@ interface Ctx {
   setActiveShift: (shift: any) => void;
   deleteOrder: (id: string) => void;
   resetAll: () => void;
+  /** إعادة تحميل فواتير الوردية من السيرفر */
+  refreshOrders: () => Promise<void>;
 }
 
 /** استهلاك المخزن لسطور الفاتورة */
@@ -1412,113 +1432,87 @@ export function PosProvider({ children }: { children: ReactNode }) {
       },
       startShift: () => setState((s) => ({ ...s, shiftStartedAt: Date.now() })),
       setActiveShift: (shift) => setState((s) => ({ ...s, activeShift: shift })),
-      saveOrder: (order) => {
-        const exists = state.orders.some((o) => o.id === order.id);
-        const prev = state.orders.find((o) => o.id === order.id);
-        const orderNo = order.orderNo ?? prev?.orderNo ?? state.nextOrderNo;
 
-        const saved: Order = {
-          ...order,
-          orderNo,
-          shiftId: order.shiftId || state.activeShift?.id || undefined,
-          updatedAt: Date.now(),
-        } as Order;
+      refreshOrders: async () => {
+        const shiftId = state.activeShift?.id;
+        try {
+          const rows = await listOrdersFn({
+            data: { shiftId: shiftId ?? undefined, limit: 200 },
+          });
+          setState((s) => ({ ...s, orders: rows }));
+        } catch (e) {
+          console.error("تعذر تحميل فواتير الوردية", e);
+        }
+      },
 
-        setState((s) => {
-          const delta = usageDelta(s, prev?.lines ?? [], order.lines);
-          if (exists) {
-            const next = {
-              ...s,
-              orders: s.orders.map((o) => (o.id === order.id ? saved : o)),
-            };
-            return applyStock(next, delta, "sale", undefined, saved.orderNo);
-          }
-          const next = {
-            ...s,
-            orders: [saved, ...s.orders],
-            nextOrderNo: Math.max(s.nextOrderNo, orderNo) + 1,
-          };
-          return applyStock(next, delta, "sale", undefined, orderNo);
+      saveOrder: async (input) => {
+        const order = await createOrderFn({
+          data: {
+            channel: input.channel,
+            lines: input.lines,
+            discount: input.discount,
+            shiftId: state.activeShift?.id ?? null,
+            tableId: input.tableId,
+            guests: input.guests,
+            externalRef: input.externalRef,
+            customerName: input.customerName,
+            customerPhone: input.customerPhone,
+            payNow: input.payNow,
+            idempotencyKey: input.idempotencyKey,
+          },
         });
 
-        // مزامنة الفاتورة مع الخادم
-        void syncOrderFn({
-          data: {
-            id: saved.id,
-            orderNo: saved.orderNo,
-            subtotal: saved.subtotal,
-            discount: saved.discount,
-            service: saved.service,
-            tax: saved.tax,
-            total: saved.total,
-            paymentMethod: saved.payments[0]?.method ?? "cash",
-            status: saved.status,
-            shiftId: saved.shiftId || null,
-            createdAt: saved.createdAt,
-            updatedAt: saved.updatedAt,
-            lines: saved.lines.map((l) => ({
-              id: l.lineId,
+        setState((s) => {
+          // استهلاك المخزن حسب وصفات الأصناف
+          const resolved = input.lines.map((l) => {
+            const item = s.items.find((i) => i.id === l.itemId);
+            const mods = (l.modifierIds ?? [])
+              .map((id) => item?.modifiers?.find((m) => m.id === id))
+              .filter((m): m is Modifier => !!m);
+            return {
+              lineId: l.itemId,
               itemId: l.itemId,
-              name: l.name,
-              unitPrice: l.unitPrice,
+              name: item?.name ?? "",
+              unitPrice: item?.price ?? 0,
               qty: l.qty,
-            })),
-          },
-        }).catch(console.error);
+              modifiers: mods,
+            };
+          });
+          const delta = usageDelta(s, [], resolved as any);
+          const next = {
+            ...s,
+            orders: [order, ...s.orders.filter((o) => o.id !== order.id)],
+          };
+          return applyStock(next, delta, "sale", undefined, order.orderNo);
+        });
 
-        return saved;
+        return order;
       },
-      cancelOrder: (id) => {
-        let cancelledOrder: Order | undefined;
+
+      cancelOrder: async (id, reason) => {
+        await cancelOrderFn({ data: { orderId: id, reason } });
         setState((s) => {
           const order = s.orders.find((o) => o.id === id);
           const next = {
             ...s,
             orders: s.orders.map((o) =>
-              o.id === id ? { ...o, status: "cancelled" as const, updatedAt: Date.now() } : o,
+              o.id === id ? { ...o, status: "cancelled" as const } : o,
             ),
           };
-          cancelledOrder = next.orders.find((o) => o.id === id);
-          if (!order || order.status === "cancelled") return next;
-          const back = usageDelta(s, order.lines, []);
-          return applyStock(next, back, "void", "إلغاء فاتورة", order.orderNo);
+          if (!order || order.status !== "paid") return next;
+          const back = order.lines.map((l) => ({
+            lineId: l.id,
+            itemId: l.itemId,
+            name: l.name,
+            unitPrice: l.basePrice,
+            qty: l.qty,
+            modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 }) as Modifier),
+          }));
+          return applyStock(next, usageDelta(s, back as any, []), "void", "إلغاء فاتورة", order.orderNo);
         });
-
-        if (cancelledOrder) {
-          void syncOrderFn({
-            data: {
-              id: cancelledOrder.id,
-              orderNo: cancelledOrder.orderNo,
-              subtotal: cancelledOrder.subtotal,
-              discount: cancelledOrder.discount,
-              service: cancelledOrder.service,
-              tax: cancelledOrder.tax,
-              total: cancelledOrder.total,
-              paymentMethod: cancelledOrder.payments[0]?.method ?? "cash",
-              status: cancelledOrder.status,
-              shiftId: cancelledOrder.shiftId || null,
-              createdAt: cancelledOrder.createdAt,
-              updatedAt: cancelledOrder.updatedAt,
-              lines: cancelledOrder.lines.map((l) => ({
-                id: l.lineId,
-                itemId: l.itemId,
-                name: l.name,
-                unitPrice: l.unitPrice,
-                qty: l.qty,
-              })),
-            },
-          }).catch(console.error);
-        }
       },
-      deleteOrder: (id) =>
-        setState((s) => {
-          const order = s.orders.find((o) => o.id === id);
-          const next = { ...s, orders: s.orders.filter((o) => o.id !== id) };
-          // لو الفاتورة كانت مدفوعة (اتخصمت من المخزن) يرجع رصيدها للمخزن قبل الحذف
-          if (!order || order.status === "cancelled") return next;
-          const back = usageDelta(s, order.lines, []);
-          return applyStock(next, back, "void", "حذف فاتورة", order.orderNo);
-        }),
+
+      deleteOrder: (id) => setState((s) => ({ ...s, orders: s.orders.filter((o) => o.id !== id) })),
       resetAll: () => setState(defaultState()),
     }),
     [state, ready, update],

@@ -73,10 +73,34 @@ export const closeShiftFn = createServerFn({ method: "POST" })
       
     if (!activeShift) throw new Error("لا توجد وردية مفتوحة حالياً");
 
-    // حساب مبيعات الكاش للفاتورة النشطة بالوردية
+    // ── حاجز: ممنوع تقفيل الوردية وفيه ترابيزات مفتوحة ──────────────────────
+    const openTables = await db
+      .prepare(
+        `SELECT tb.name, o.total, o.order_no
+           FROM table_orders t
+           JOIN orders o  ON o.id = t.order_id
+           JOIN tables tb ON tb.id = t.table_id
+          WHERE t.closed_at IS NULL AND o.status = 'open'
+          ORDER BY tb.sort, tb.name`,
+      )
+      .all<{ name: string; total: number; order_no: number }>();
+
+    const stillOpen = openTables.results ?? [];
+    if (stillOpen.length) {
+      const list = stillOpen
+        .map((t) => `${t.name} (#${t.order_no} — ${Number(t.total).toFixed(2)} ج.م)`)
+        .join("، ");
+      throw new Error(
+        `لا يمكن إغلاق الوردية — فيه ${stillOpen.length} ترابيزة مفتوحة: ${list}. اقفل الترابيزات الأول.`,
+      );
+    }
+
+    // حساب النقد المتوقع من الجداول الجديدة (بدون طلبات — دي بتيجي تحويل)
     const cashSales = await db
       .prepare(
-        "SELECT COALESCE(SUM(total), 0) as total FROM sales_orders WHERE shift_id = ? AND payment_method = 'cash' AND status = 'paid'",
+        `SELECT COALESCE(SUM(total), 0) as total FROM orders
+          WHERE shift_id = ? AND status = 'paid'
+            AND payment_method = 'cash' AND channel IN ('counter','table')`,
       )
       .bind(activeShift.id)
       .first<{ total: number }>();

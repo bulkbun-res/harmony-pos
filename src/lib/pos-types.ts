@@ -90,7 +90,7 @@ export interface CartLine {
 
 export type PaymentMethod = "cash" | "vodafone" | "instapay" | "visa";
 
-export type OrderStatus = "paid" | "cancelled";
+export type OrderStatus = "open" | "paid" | "cancelled";
 
 export interface OrderPayment {
   method: PaymentMethod;
@@ -98,22 +98,8 @@ export interface OrderPayment {
   at: number;
 }
 
-export interface Order {
-  id: string;
-  orderNo: number;
-  createdAt: number;
-  updatedAt: number;
-  status: OrderStatus;
-  lines: CartLine[];
-  discount: number;
-  subtotal: number;
-  service: number;
-  tax: number;
-  total: number;
-  payments: OrderPayment[];
-  note?: string;
-  shiftId?: string;
-}
+/** الفاتورة كما هي محفوظة على السيرفر (منظومة القنوات الثلاث) */
+export type Order = import("./orders-types").OrderDTO;
 
 export interface PosState {
   groups: Group[];

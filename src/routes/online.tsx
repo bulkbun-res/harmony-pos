@@ -132,92 +132,39 @@ function OnlineScreen() {
     (o) => o.status === "rejected" || (o.status === "ready" && o.paid_at),
   );
 
-  /** يحوّل الطلب لفاتورة POS ويخصم الاستهلاك من المخزن */
+  /** يحوّل الطلب لفاتورة POS مفتوحة (idempotent — مش هيتكرر) */
   const prepare = async (o: OnlineOrderRow, useProposed = false) => {
     const lines = useProposed ? (o.proposed_items ?? o.items) : o.items;
-    const cartLines: CartLine[] = lines.map((l, i) => ({
-      lineId: `${o.id}-${i}`,
-      itemId: l.itemId,
-      name: l.name,
-      unitPrice: l.unitPrice,
-      qty: l.qty,
-      modifiers: [],
-    }));
-    const subtotal = sumLines(lines);
-    const service = Math.round(subtotal * state.serviceRate * 100) / 100;
-    const tax = Math.round((subtotal + service) * state.taxRate * 100) / 100;
-    const total = Math.round((subtotal + service + tax) * 100) / 100;
-    saveOrder({
-      id: `online-${o.id}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      status: "paid",
-      lines: cartLines,
-      discount: 0,
-      subtotal,
-      service,
-      tax,
-      total,
-      payments: [],
-      note: `طلب أونلاين #${o.order_no} — ${o.customer_name} — ${o.customer_phone}`,
+    await saveOrder({
+      channel: "counter",
+      lines: lines.map((l) => ({ itemId: l.itemId, qty: l.qty })),
+      idempotencyKey: `online-${o.id}`,
+      customerName: `${o.customer_name} — ${o.customer_phone}`,
     });
     await setStatus({ data: { id: o.id, status: "preparing", applyProposed: useProposed } });
     toast.success(`جاري تجهيز الطلب #${o.order_no} — اتخصم من المخزن`);
     void refresh();
   };
 
-  /** إجمالي الفاتورة النهائي (بعد الخدمة والضريبة) للطلب الأونلاين */
+  /** إجمالي الفاتورة النهائي للطلب الأونلاين */
   const invoiceTotal = (o: OnlineOrderRow) => {
     const subtotal = sumLines(o.items);
-    const service = Math.round(subtotal * state.serviceRate * 100) / 100;
-    const tax = Math.round((subtotal + service) * state.taxRate * 100) / 100;
-    return {
-      subtotal,
-      service,
-      tax,
-      total: Math.round((subtotal + service + tax) * 100) / 100,
-    };
+    return { subtotal, service: 0, tax: 0, total: subtotal };
   };
 
-  /** تأكيد الدفع: يسجّل الدفع على الطلب الأونلاين وعلى فاتورة الـPOS */
+  /** تأكيد الدفع — بيسدد الفاتورة المفتوحة المرتبطة بالطلب */
   const confirmPayment = async (o: OnlineOrderRow, method: PaymentMethod) => {
     const t = invoiceTotal(o);
     await markPaid({ data: { id: o.id, method: method as OnlinePaymentMethod, amount: t.total } });
-    const invoiceId = `online-${o.id}`;
-    const existing = state.orders.find((x) => x.id === invoiceId);
-    const lines: CartLine[] =
-      existing?.lines ??
-      o.items.map((l, i) => ({
-        lineId: `${o.id}-${i}`,
-        itemId: l.itemId,
-        name: l.name,
-        unitPrice: l.unitPrice,
-        qty: l.qty,
-        modifiers: [],
-      }));
-    const saved = saveOrder({
-      ...(existing ?? {
-        id: invoiceId,
-        createdAt: Date.now(),
-        discount: 0,
-        note: `طلب أونلاين #${o.order_no} — ${o.customer_name} — ${o.customer_phone}`,
-      }),
-      id: invoiceId,
-      updatedAt: Date.now(),
-      status: "paid",
-      lines,
-      discount: existing?.discount ?? 0,
-      subtotal: t.subtotal,
-      service: t.service,
-      tax: t.tax,
-      total: t.total,
-      payments: [{ method, amount: t.total, at: Date.now() }],
-      note:
-        existing?.note ?? `طلب أونلاين #${o.order_no} — ${o.customer_name} — ${o.customer_phone}`,
-      ...(existing?.orderNo ? { orderNo: existing.orderNo } : {}),
-    } as Parameters<typeof saveOrder>[0]);
+    const saved = await saveOrder({
+      channel: "counter",
+      lines: o.items.map((l) => ({ itemId: l.itemId, qty: l.qty })),
+      idempotencyKey: `online-${o.id}`,
+      payNow: method,
+      customerName: `${o.customer_name} — ${o.customer_phone}`,
+    });
     toast.success(
-      `تم تأكيد الدفع (${ONLINE_PAYMENT_LABEL[method as OnlinePaymentMethod]}) — ${EGP(t.total)}`,
+      `تم تأكيد الدفع (${ONLINE_PAYMENT_LABEL[method as OnlinePaymentMethod]}) — ${EGP(saved.total)}`,
     );
     printReceipt(saved, {
       title: `طلب أونلاين #${o.order_no}`,
@@ -227,41 +174,49 @@ function OnlineScreen() {
     void refresh();
   };
 
-  /** طباعة فاتورة الطلب الأونلاين (تبني الفاتورة لو لسه متسجلتش) */
+  /** طباعة فاتورة الطلب الأونلاين (نسخة للعرض فقط) */
   const printOnline = (o: OnlineOrderRow) => {
     const t = invoiceTotal(o);
-    const existing = state.orders.find((x) => x.id === `online-${o.id}`);
-    const order =
-      existing ??
-      ({
-        id: `online-${o.id}`,
-        orderNo: o.order_no,
-        createdAt: new Date(o.created_at).getTime(),
-        updatedAt: Date.now(),
-        status: "paid" as const,
-        lines: o.items.map((l, i) => ({
-          lineId: `${o.id}-${i}`,
-          itemId: l.itemId,
-          name: l.name,
-          unitPrice: l.unitPrice,
-          qty: l.qty,
-          modifiers: [],
-        })),
-        discount: 0,
-        subtotal: t.subtotal,
-        service: t.service,
-        tax: t.tax,
-        total: t.total,
-        payments: o.paid_at
-          ? [
-              {
-                method: (o.payment_method ?? "cash") as PaymentMethod,
-                amount: Number(o.paid_amount ?? t.total),
-                at: new Date(o.paid_at).getTime(),
-              },
-            ]
-          : [],
-      } as Order);
+    const order: Order = {
+      id: `online-${o.id}`,
+      channel: "counter",
+      orderNo: o.order_no,
+      status: "paid",
+      subtotal: t.subtotal,
+      discount: 0,
+      serviceRate: 0,
+      service: 0,
+      taxRate: 0,
+      tax: 0,
+      total: o.paid_amount ?? t.total,
+      paymentMethod: (o.payment_method ?? "cash") as PaymentMethod,
+      paidAt: o.paid_at ?? null,
+      shiftId: null,
+      userName: null,
+      createdAt: o.created_at,
+      updatedAt: o.created_at,
+      tableId: null,
+      tableName: null,
+      guests: null,
+      openedAt: null,
+      closedAt: null,
+      externalRef: String(o.order_no),
+      idempotencyKey: `online-${o.id}`,
+      lines: o.items.map((l, i) => ({
+        id: `${o.id}-${i}`,
+        itemId: l.itemId,
+        name: l.name,
+        basePrice: l.unitPrice,
+        unitPrice: l.unitPrice,
+        qty: l.qty,
+        lineTotal: l.unitPrice * l.qty,
+        kind: "item" as const,
+        parentLineId: null,
+        modifierNames: [],
+        note: null,
+        voided: false,
+      })),
+    };
     if (
       !printReceipt(order, {
         title: `طلب أونلاين #${o.order_no}`,
@@ -271,6 +226,7 @@ function OnlineScreen() {
     )
       toast.error("اسمح بالنوافذ المنبثقة للطباعة");
   };
+
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">

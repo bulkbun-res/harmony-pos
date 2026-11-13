@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { printReceipt } from "@/lib/print-receipt";
 import { usePos } from "@/lib/pos-store";
+import { payOrderFn } from "@/lib/orders.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { CHANNEL_LABEL } from "@/lib/orders-types";
 
 import { EGP, PAYMENT_METHODS, type Order } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
@@ -43,11 +46,12 @@ const fmtTime = (t: number) =>
     minute: "2-digit",
   });
 
-const isPaid = (o: Order) => o.payments.length > 0;
+const isPaid = (o: Order) => o.status === "paid";
 const isOnline = (o: Order) => o.id.startsWith("online-");
 
 function OrdersScreen() {
-  const { state, cancelOrder, deleteOrder, saveOrder } = usePos();
+  const { state, cancelOrder, refreshOrders } = usePos();
+  const payServer = useServerFn(payOrderFn);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "paid" | "unpaid" | "cancelled">("all");
@@ -56,7 +60,7 @@ function OrdersScreen() {
   const orders = useMemo(() => {
     const term = q.trim();
     return [...state.orders]
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
       .filter((o) =>
         filter === "all"
           ? true
@@ -83,16 +87,16 @@ function OrdersScreen() {
   const todayTotal = today.filter(isPaid).reduce((s, o) => s + o.total, 0);
   const todayUnpaid = today.filter((o) => !isPaid(o)).reduce((s, o) => s + o.total, 0);
 
-  const recordPayment = (o: Order, method: (typeof PAYMENT_METHODS)[number]["id"]) => {
-    saveOrder({
-      ...o,
-      status: "paid",
-      updatedAt: Date.now(),
-      payments: [{ method, amount: o.total, at: Date.now() }],
-    });
-    toast.success(
-      `تم تسجيل الدفع للفاتورة #${o.orderNo} — ${PAYMENT_METHODS.find((m) => m.id === method)?.label}`,
-    );
+  const recordPayment = async (o: Order, method: (typeof PAYMENT_METHODS)[number]["id"]) => {
+    try {
+      await payServer({ data: { orderId: o.id, paymentMethod: method } });
+      await refreshOrders();
+      toast.success(
+        `تم تسجيل الدفع للفاتورة #${o.orderNo} — ${PAYMENT_METHODS.find((m) => m.id === method)?.label}`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر تسجيل الدفع");
+    }
   };
 
   return (
@@ -184,9 +188,7 @@ function OrdersScreen() {
                   <p className="truncate text-[11px] text-muted-foreground">
                     {fmtTime(o.createdAt)} — {o.lines.length} صنف —{" "}
                     {isPaid(o)
-                      ? o.payments
-                          .map((p) => PAYMENT_METHODS.find((m) => m.id === p.method)?.label)
-                          .join(" + ")
+                      ? (PAYMENT_METHODS.find((m) => m.id === o.paymentMethod)?.label ?? "مدفوعة")
                       : "بانتظار التحصيل"}
                   </p>
                 </div>
@@ -255,13 +257,12 @@ function OrdersScreen() {
                   <span className="font-extrabold">الإجمالي</span>
                   <span className="text-xl font-black text-primary">{EGP(selected.total)}</span>
                 </div>
-                {selected.payments.map((p, i) => (
+                {selected.paymentMethod && (
                   <Row
-                    key={i}
-                    label={`${PAYMENT_METHODS.find((m) => m.id === p.method)?.label} — ${fmtTime(p.at)}`}
-                    value={EGP(p.amount)}
+                    label={`${PAYMENT_METHODS.find((m) => m.id === selected.paymentMethod)?.label} — ${selected.paidAt ? fmtTime(selected.paidAt) : ""}`}
+                    value={EGP(selected.total)}
                   />
-                ))}
+                )}
 
                 {selected.status !== "cancelled" && !isPaid(selected) && (
                   <div className="mt-2 rounded-xl border border-destructive/40 bg-destructive/10 p-2.5">
@@ -274,7 +275,7 @@ function OrdersScreen() {
                           key={m.id}
                           variant="secondary"
                           className="h-9 text-xs font-extrabold"
-                          onClick={() => recordPayment(selected, m.id)}
+                          onClick={() => void recordPayment(selected, m.id)}
                         >
                           {m.label}
                         </Button>
@@ -317,9 +318,8 @@ function OrdersScreen() {
                       variant="destructive"
                       className="h-11"
                       onClick={() => {
-                        deleteOrder(selected.id);
                         setSelectedId(null);
-                        toast.success("تم حذف الفاتورة من السجل");
+                        toast.info("الفواتير محفوظة على السيرفر ومش بتتحذف نهائيًا");
                       }}
                     >
                       <Trash2 className="h-4 w-4" /> حذف نهائي
