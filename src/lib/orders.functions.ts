@@ -198,13 +198,13 @@ async function loadOrder(db: D1Database, orderId: string): Promise<OrderDTO> {
   };
 }
 
-/** إعادة حساب مجاميع فاتورة مفتوحة من أسطرها */
-async function recalcOpenOrder(db: D1Database, orderId: string) {
+/** إعادة حساب مجاميع فاتورة من أسطرها (بدون شرط الحالة) */
+async function recalcOrder(db: D1Database, orderId: string) {
   const head = await db
-    .prepare("SELECT discount, service_rate, tax_rate FROM orders WHERE id = ? AND status = 'open'")
+    .prepare("SELECT discount, service_rate, tax_rate FROM orders WHERE id = ?")
     .bind(orderId)
     .first<{ discount: number; service_rate: number; tax_rate: number }>();
-  if (!head) throw new Error("الفاتورة غير مفتوحة أو غير موجودة");
+  if (!head) throw new Error("الفاتورة غير موجودة");
 
   const sum = await db
     .prepare("SELECT COALESCE(SUM(line_total), 0) AS s FROM order_lines WHERE order_id = ? AND voided = 0")
@@ -227,6 +227,17 @@ async function recalcOpenOrder(db: D1Database, orderId: string) {
     .run();
 
   return { subtotal, service, tax, total };
+}
+
+/** نفس الحاجة بس بترفض لو الفاتورة مش مفتوحة */
+async function recalcOpenOrder(db: D1Database, orderId: string) {
+  const head = await db
+    .prepare("SELECT status FROM orders WHERE id = ?")
+    .bind(orderId)
+    .first<{ status: string }>();
+  if (!head) throw new Error("الفاتورة غير موجودة");
+  if (head.status !== "open") throw new Error("الفاتورة مقفولة — لا يمكن التعديل");
+  return recalcOrder(db, orderId);
 }
 
 /** يحدّد الفاتورة مدفوعة بعد إعادة حساب مجاميعها */
@@ -475,6 +486,90 @@ export const createOrderFn = createServerFn({ method: "POST" })
     }
 
     return loadOrder(db, orderId);
+  });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// تعديل فاتورة محفوظة (بدل ما نعمل نسخة جديدة)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const updateOrderFn = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      orderId: z.string().min(1),
+      lines: z.array(lineInputSchema).min(1).max(100),
+      discount: z.number().min(0).optional(),
+      paymentMethod: paymentSchema.optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const user = await requireUser();
+    const db = await getD1();
+
+    const head = await db
+      .prepare(
+        `SELECT o.channel, o.status, o.is_legacy, d.markup_pct
+           FROM orders o
+           LEFT JOIN talabat_orders d ON d.order_id = o.id
+          WHERE o.id = ?`,
+      )
+      .bind(data.orderId)
+      .first<{ channel: Channel; status: string; is_legacy: number; markup_pct: number | null }>();
+
+    if (!head) throw new Error("الفاتورة غير موجودة");
+    if (head.status === "cancelled") throw new Error("فاتورة ملغاة — لا يمكن تعديلها");
+
+    const settings = await readSettings(db);
+    const menu = await loadMenu(db);
+    const markup =
+      head.channel === "talabat" ? Number(head.markup_pct ?? settings.talabatMarkupPct) : 0;
+    const priced = priceLines(menu, head.channel, markup, data.lines);
+
+    // استبدال الأسطر بالكامل (تعديل حقيقي مش فاتورة زيادة)
+    await db.prepare("DELETE FROM order_lines WHERE order_id = ?").bind(data.orderId).run();
+    await db.batch(
+      priced.map((l) =>
+        db
+          .prepare(
+            `INSERT INTO order_lines (id, order_id, item_id, name, base_price, unit_price,
+               qty, line_total, kind, modifiers, note)
+             VALUES (?,?,?,?,?,?,?,?,'item',?,?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            data.orderId,
+            l.itemId,
+            l.name,
+            l.basePrice,
+            l.unitPrice,
+            l.qty,
+            l.lineTotal,
+            JSON.stringify(l.modifiers),
+            l.note,
+          ),
+      ),
+    );
+
+    if (data.discount !== undefined) {
+      await db
+        .prepare("UPDATE orders SET discount = ? WHERE id = ?")
+        .bind(round2(data.discount), data.orderId)
+        .run();
+    }
+
+    await recalcOrder(db, data.orderId);
+
+    if (data.paymentMethod) {
+      await db
+        .prepare(
+          `UPDATE orders SET payment_method = ?, paid_at = COALESCE(paid_at, ?), updated_at = ?
+            WHERE id = ?`,
+        )
+        .bind(data.paymentMethod, nowIso(), nowIso(), data.orderId)
+        .run();
+    }
+
+    return loadOrder(db, data.orderId);
   });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ import {
   getOrderFn,
   addOrderLinesFn,
   payOrderFn,
+  updateOrderFn,
 } from "@/lib/orders.functions";
 import { CHANNELS, CHANNEL_LABEL, round2 } from "@/lib/orders-types";
 import type { Channel } from "@/lib/orders-types";
@@ -164,6 +165,8 @@ function PosScreen() {
   const [payOpen, setPayOpen] = useState(false);
   const [editing, setEditing] = useState<Order | null>(null);
   const [saving, setSaving] = useState(false);
+  /** حارس ضد الضغط المزدوج — الحالة بتتأخر فريم، الـ ref فوري */
+  const savingRef = useRef(false);
 
   // ── القنوات الثلاث ────────────────────────────────────────────────────────
   const [channel, setChannel] = useState<Channel>("counter");
@@ -185,6 +188,7 @@ function PosScreen() {
   const loadOrderById = useServerFn(getOrderFn);
   const addLinesServer = useServerFn(addOrderLinesFn);
   const payOrderServer = useServerFn(payOrderFn);
+  const updateOrderServer = useServerFn(updateOrderFn);
 
   useEffect(() => {
     void loadSettings({})
@@ -210,23 +214,15 @@ function PosScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.activeShift?.id]);
 
-  // استرجاع فاتورة سابقة للتعديل / الزيادة عليها
+  // استرجاع فاتورة سابقة للتعديل — من الذاكرة أو من السيرفر لو مش في الوردية الحالية
   const loadedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!editId) {
-      loadedRef.current = null;
-      setEditing(null);
-      return;
-    }
-    if (loadedRef.current === editId) return;
-    const o = state.orders.find((x) => x.id === editId);
-    if (!o) return;
-    loadedRef.current = editId;
+  const applyEditing = useCallback((o: Order) => {
     setEditing(o);
     setChannel(o.channel);
     setTableId(o.tableId ?? "");
     setTalabatRef(o.externalRef ?? "");
     setDiscount(o.discount);
+    setOpenOrderId(null);
     setLines(
       o.lines.map((l) => ({
         lineId: l.id,
@@ -237,7 +233,32 @@ function PosScreen() {
         modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
       })),
     );
-  }, [editId, state.orders]);
+  }, []);
+
+  useEffect(() => {
+    if (!editId) {
+      loadedRef.current = null;
+      setEditing(null);
+      return;
+    }
+    if (loadedRef.current === editId) return;
+
+    const cached = state.orders.find((x) => x.id === editId);
+    if (cached) {
+      loadedRef.current = editId;
+      applyEditing(cached);
+      return;
+    }
+
+    // مش موجودة محليًا (فاتورة من وردية قديمة) — نجيبها من السيرفر
+    loadedRef.current = editId;
+    void loadOrderById({ data: { orderId: editId } })
+      .then((o) => applyEditing(o))
+      .catch(() => {
+        loadedRef.current = null;
+        toast.error("تعذر تحميل الفاتورة المطلوبة");
+      });
+  }, [editId, state.orders, applyEditing, loadOrderById]);
 
   const orderNo = editing?.orderNo ?? null;
 
@@ -336,12 +357,23 @@ function PosScreen() {
   };
 
   const completeOrder = async (method: PaymentMethod) => {
-    if (!lines.length || saving) return;
+    if (!lines.length || savingRef.current) return;
+    savingRef.current = true;
     const label = PAYMENT_METHODS.find((p) => p.id === method)?.label;
     setSaving(true);
     try {
       let saved: Order;
-      if (openOrderId) {
+      if (editing) {
+        // تعديل فاتورة محفوظة — بنحدّثها في مكانها، مش بنعمل نسخة جديدة
+        saved = await updateOrderServer({
+          data: {
+            orderId: editing.id,
+            lines: toInput(lines),
+            discount,
+            paymentMethod: method,
+          },
+        });
+      } else if (openOrderId) {
         await addLinesServer({ data: { orderId: openOrderId, lines: toInput(lines) } });
         saved = await payOrderServer({
           data: { orderId: openOrderId, paymentMethod: method, discount },
@@ -361,6 +393,7 @@ function PosScreen() {
 
       resetTicket();
       void refreshBoard();
+      void refreshOrders();
 
       const toPrint = saved;
       setTimeout(() => {
@@ -369,13 +402,15 @@ function PosScreen() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر حفظ الفاتورة");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
   /** حفظ الفاتورة على الترابيزة من غير دفع */
   const saveOpenTable = async () => {
-    if (channel !== "table" || !tableId || !lines.length || saving) return;
+    if (channel !== "table" || !tableId || !lines.length || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       if (openOrderId) {
@@ -401,6 +436,7 @@ function PosScreen() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -621,9 +657,11 @@ function PosScreen() {
           {CHANNELS.map((c) => (
             <button
               key={c.id}
+              disabled={!!editing}
+              title={editing ? "مش ممكن تغيّر قناة فاتورة محفوظة" : undefined}
               onClick={() => {
+                if (editing) return;
                 setChannel(c.id);
-                setEditing(null);
                 setOpenOrderId(null);
                 setLines([]);
                 setDiscount(0);
@@ -635,6 +673,7 @@ function PosScreen() {
                 channel === c.id
                   ? "bg-primary text-primary-foreground shadow"
                   : "text-muted-foreground hover:text-foreground",
+                editing && channel !== c.id && "cursor-not-allowed opacity-30",
               )}
             >
               {c.short}
@@ -768,7 +807,7 @@ function PosScreen() {
                     : `فاتورة جديدة — ${CHANNEL_LABEL[channel]}`}
                 {editing && (
                   <span className="ms-2 rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-400">
-                    تعديل فاتورة سابقة
+                    تعديل فاتورة سابقة — الحفظ هيعدّل نفس الفاتورة
                   </span>
                 )}
               </p>
@@ -867,7 +906,7 @@ function PosScreen() {
               >
                 {saving ? "جاري الحفظ…" : "الدفع"}
               </Button>
-              {channel === "table" && (
+              {channel === "table" && !editing && (
                 <Button
                   variant="secondary"
                   className="h-12 px-3 text-xs font-black"
