@@ -176,7 +176,7 @@ export const respondToProposal = createServerFn({ method: "POST" })
       .bind(data.id)
       .first<Record<string, unknown>>();
     if (!updated) throw new Error("فشل تحديث الطلب");
-    return toCustomerView(rowToOrderRow(updated));
+    return toCustomerView(rowToOrderRow(updated) as unknown as Record<string, unknown>);
   });
 
 // ─── posListOrders ────────────────────────────────────────────────────────────
