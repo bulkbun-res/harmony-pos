@@ -25,10 +25,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      # tsc استشاري: الريبو الأصلي فيه أخطاء أنواع قديمة، فمش بنوقّف
-      # البناء عليها. الأخطاء بتظهر في اللوج عشان نصلحها تدريجيًا.
-      - name: Typecheck (advisory)
-        continue-on-error: true
+      # tsc بقى حاجز: الريبو نضيف من أخطاء الأنواع بعد إصلاح 65 خطأ قديم.
+      - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
 
       - name: Upload build artifact
