@@ -177,6 +177,7 @@ function PosScreen() {
   const [tablesBoard, setTablesBoard] = useState<
     { id: string; name: string; zone: string; seats: number; orderId: string | null; orderNo: number | null; total: number | null }[]
   >([]);
+  const [boardError, setBoardError] = useState<string | null>(null);
   const [posSettings, setPosSettings] = useState({
     tablesServicePct: 0,
     talabatMarkupPct: 20,
@@ -198,15 +199,19 @@ function PosScreen() {
 
   const refreshBoard = useCallback(async () => {
     try {
-      setTablesBoard(await loadBoard({}));
+      const rows = await loadBoard({});
+      setTablesBoard(rows);
+      setBoardError(null);
     } catch (e) {
       console.error("تعذر تحميل الترابيزات", e);
+      setBoardError(e instanceof Error ? e.message : "تعذر تحميل الترابيزات");
     }
   }, [loadBoard]);
 
+  // بنعيد المحاولة بعد تسجيل الدخول/فتح الوردية — أول تحميل ممكن يفشل قبل الكوكي
   useEffect(() => {
     void refreshBoard();
-  }, [refreshBoard]);
+  }, [refreshBoard, state.activeShift?.id]);
 
   // تحميل فواتير الوردية من السيرفر
   useEffect(() => {
@@ -657,23 +662,29 @@ function PosScreen() {
           {CHANNELS.map((c) => (
             <button
               key={c.id}
-              disabled={!!editing}
-              title={editing ? "مش ممكن تغيّر قناة فاتورة محفوظة" : undefined}
               onClick={() => {
-                if (editing) return;
+                if (editing) {
+                  setEditing(null);
+                  loadedRef.current = null;
+                  void navigate({ to: "/", search: { order: undefined } });
+                  toast.info("خرجت من وضع التعديل");
+                }
                 setChannel(c.id);
                 setOpenOrderId(null);
                 setLines([]);
                 setDiscount(0);
                 setTableId("");
                 setTalabatRef("");
+                if (c.id === "table") {
+                  const free = tablesBoard.find((t) => !t.orderId);
+                  if (free) void selectTable(free.id);
+                }
               }}
               className={cn(
                 "h-8 rounded-lg px-3 text-xs font-black transition-all",
                 channel === c.id
                   ? "bg-primary text-primary-foreground shadow"
                   : "text-muted-foreground hover:text-foreground",
-                editing && channel !== c.id && "cursor-not-allowed opacity-30",
               )}
             >
               {c.short}
@@ -713,6 +724,11 @@ function PosScreen() {
                 الترابيزة
               </span>
               <div className="flex items-center gap-1.5">
+                {tablesBoard.length === 0 && (
+                  <span className="shrink-0 text-[11px] font-bold text-destructive">
+                    {boardError ? `تعذر تحميل الترابيزات: ${boardError}` : "مفيش ترابيزات — ضيفها من الإعدادات"}
+                  </span>
+                )}
                 {tablesBoard.map((t) => (
                   <button
                     key={t.id}
@@ -893,16 +909,38 @@ function PosScreen() {
                 <span className="font-extrabold text-primary">المتبقي</span>
               </div>
             )}
+            {channel === "table" && !tableId && (
+              <p className="mt-1 rounded-lg bg-destructive/10 px-2 py-1 text-[11px] font-bold text-destructive">
+                اختر ترابيزة من الشريط فوق
+              </p>
+            )}
+            {channel === "talabat" && !talabatRef.trim() && (
+              <p className="mt-1 rounded-lg bg-destructive/10 px-2 py-1 text-[11px] font-bold text-destructive">
+                اكتب رقم أوردر طلبات فوق
+              </p>
+            )}
             <div className="mt-2 flex gap-2">
               <Button
                 className="h-12 flex-1 text-base font-extrabold"
-                disabled={
-                  !lines.length ||
-                  saving ||
-                  (channel === "table" && !tableId) ||
-                  (channel === "talabat" && !talabatRef.trim())
-                }
-                onClick={() => setPayOpen(true)}
+                disabled={!lines.length || saving}
+                onClick={() => {
+                  // الزرار مش بيتقفل — بنقول السبب بدل ما يبان ميّت
+                  if (channel === "table" && !tableId) {
+                    const free = tablesBoard.find((t) => !t.orderId);
+                    if (free) {
+                      void selectTable(free.id);
+                      toast.info(`اخترنا ${free.name} — اضغط الدفع تاني`);
+                    } else {
+                      toast.error("مفيش ترابيزة فاضية — اقفل ترابيزة الأول");
+                    }
+                    return;
+                  }
+                  if (channel === "talabat" && !talabatRef.trim()) {
+                    toast.error("أدخل رقم أوردر طلبات الأول");
+                    return;
+                  }
+                  setPayOpen(true);
+                }}
               >
                 {saving ? "جاري الحفظ…" : "الدفع"}
               </Button>
