@@ -29,11 +29,17 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
 
-      - name: Upload build artifact
-        if: always()
+      # نرفع tarball واحد فيه .output و .wrangler — عشان النشر يتم من
+      # الجهاز بـ wrangler deploy بس (بدون build محلي على جهاز 1GB).
+      - name: Pack deployable output
+        if: success()
+        run: tar -czf deploy-output.tgz .output .wrangler
+
+      - name: Upload deploy artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: output
-          path: .output
-          retention-days: 3
-          if-no-files-found: ignore
+          name: deploy-output
+          path: deploy-output.tgz
+          retention-days: 5
+          if-no-files-found: error
