@@ -24,8 +24,6 @@ import {
   getPosSettingsFn,
   getTableBoardFn,
   getOrderFn,
-  addOrderLinesFn,
-  payOrderFn,
   updateOrderFn,
 } from "@/lib/orders.functions";
 import { CHANNELS, CHANNEL_LABEL, round2 } from "@/lib/orders-types";
@@ -189,8 +187,6 @@ function PosScreen() {
   const loadSettings = useServerFn(getPosSettingsFn);
   const loadBoard = useServerFn(getTableBoardFn);
   const loadOrderById = useServerFn(getOrderFn);
-  const addLinesServer = useServerFn(addOrderLinesFn);
-  const payOrderServer = useServerFn(payOrderFn);
   const updateOrderServer = useServerFn(updateOrderFn);
 
   useEffect(() => {
@@ -352,16 +348,23 @@ function PosScreen() {
       modifierIds: l.modifiers.map((m) => m.id),
     }));
 
+  /** أي خروج من التعديل لازم يمسح الحالة والمرجع والرابط مع بعض */
+  const clearEditing = () => {
+    setEditing(null);
+    editingRef.current = null;
+    loadedRef.current = null;
+    // لو ?order فضل في الرابط، أي تحديث للّيست هيرجّع الفاتورة القديمة للسلة
+    if (editId) void navigate({ to: "/", search: { order: undefined } });
+  };
+
   const resetTicket = () => {
     setPayOpen(false);
     setLines([]);
     setDiscount(0);
-    setEditing(null);
-    editingRef.current = null;
-    loadedRef.current = null;
+    clearEditing();
     setOpenOrderId(null);
+    setTableId("");
     setTalabatRef("");
-    if (editId) void navigate({ to: "/", search: { order: undefined } });
   };
 
   const completeOrder = async (method: PaymentMethod) => {
@@ -383,9 +386,15 @@ function PosScreen() {
           },
         });
       } else if (openOrderId) {
-        await addLinesServer({ data: { orderId: openOrderId, lines: toInput(lines) } });
-        saved = await payOrderServer({
-          data: { orderId: openOrderId, paymentMethod: method, discount },
+        // ⚠️ السلة فيها أسطر الفاتورة المفتوحة أصلاً — فبنستبدل مش بنضيف،
+        // وإلا كل تعديل على ترابيزة كان بيضاعف الأصناف.
+        saved = await updateOrderServer({
+          data: {
+            orderId: openOrderId,
+            lines: toInput(lines),
+            discount,
+            paymentMethod: method,
+          },
         });
       } else {
         saved = await saveOrder({
@@ -422,26 +431,35 @@ function PosScreen() {
     savingRef.current = true;
     setSaving(true);
     try {
+      let saved: Order;
       if (openOrderId) {
-        await addLinesServer({ data: { orderId: openOrderId, lines: toInput(lines) } });
+        saved = await updateOrderServer({
+          data: { orderId: openOrderId, lines: toInput(lines), discount },
+        });
       } else {
-        const created = await saveOrder({
+        saved = await saveOrder({
           channel: "table",
           lines: toInput(lines),
           discount,
           tableId,
         });
-        setOpenOrderId(created.id);
       }
-      setLines([]);
-      setDiscount(0);
-      toast.success("تم الحفظ على الترابيزة");
+      // السلة = محتوى الفاتورة المفتوحة، فبنسيبها زي ما هي (مش بنفضّيها)
+      // عشان لو الكاشير ضاف أصناف تانية بعدين، الاستبدال يبقى كامل مش ناقص.
+      setOpenOrderId(saved.id);
+      setLines(
+        saved.lines.map((l) => ({
+          lineId: l.id,
+          itemId: l.itemId,
+          name: l.name,
+          unitPrice: l.basePrice,
+          qty: l.qty,
+          modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
+        })),
+      );
+      setDiscount(saved.discount);
+      toast.success(`اتحفظت على ${tablesBoard.find((t) => t.id === tableId)?.name ?? "الترابيزة"}`);
       await refreshBoard();
-      if (tableId) {
-        // أعد تحميل الفاتورة المفتوحة عشان تبقى جاهزة للإضافة
-        const opened = tablesBoard.find((t) => t.id === tableId)?.orderId;
-        if (opened) setOpenOrderId(opened);
-      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
     } finally {
@@ -453,7 +471,7 @@ function PosScreen() {
   /** اختيار ترابيزة: لو مفتوحة نحمّل فاتورتها */
   const selectTable = async (id: string) => {
     setTableId(id);
-    setEditing(null);
+    clearEditing();
     setLines([]);
     setDiscount(0);
     setOpenOrderId(null);
@@ -530,9 +548,7 @@ function PosScreen() {
   const cancelEditing = () => {
     setLines([]);
     setDiscount(0);
-    setEditing(null);
-    editingRef.current = null;
-    loadedRef.current = null;
+    clearEditing();
     setOpenOrderId(null);
     void navigate({ to: "/", search: { order: undefined } });
     toast.info("اتلغى التعديل — الطلب الجديد هيبقى فاتورة جديدة");
