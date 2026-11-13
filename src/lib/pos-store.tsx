@@ -1314,7 +1314,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
                       color: (dbItem.color as Item["color"]) ?? defaultItem?.color ?? "leaf",
                       modifiers: dbItem.modifiers ?? defaultItem?.modifiers ?? [],
                       recipe: dbItem.recipe ?? defaultItem?.recipe ?? [],
-                    };
+                    } as Item;
                   }),
                 };
               });

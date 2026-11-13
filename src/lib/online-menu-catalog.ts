@@ -269,7 +269,7 @@ export function resolveOnlineItemImage(
 
   // 2. إذا كان صنف آخر مسجل في المكتبة
   if (OTHER_ITEMS_MAP[item.id]) {
-    return OTHER_ITEMS_MAP[item.id];
+    return OTHER_ITEMS_MAP[item.id] as string;
   }
 
   // 3. رابط خارجي مباشر لو كان موجوداً
