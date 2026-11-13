@@ -38,9 +38,30 @@ function rowToOrderRow(row: Record<string, unknown>): OnlineOrderRow {
     payment_method: (row["payment_method"] ?? null) as OnlineOrderRow["payment_method"],
     paid_amount: row["paid_amount"] == null ? null : Number(row["paid_amount"]),
     paid_at: (row["paid_at"] ?? null) as string | null,
+    table_no: (row["table_no"] ?? null) as string | null,
     created_at: row["created_at"] as string,
     updated_at: row["updated_at"] as string,
   };
+}
+
+
+/**
+ * يرجّع الصنف من المنيو، وبيتعامل مع صيغة "<itemId>-<breadKey>"
+ * اللي المنيو الإلكتروني بيبعتها لما العميل يختار نوع الخبز.
+ * بنختار أطول تطابق عشان "sl-roast-beef-french" تتقري صح مش "sl-roast".
+ */
+function resolveMenuItem(
+  items: { id: string; available: boolean; name: string; price: number }[],
+  lineId: string,
+) {
+  const exact = items.find((i) => i.id === lineId);
+  if (exact) return { item: exact, suffix: "" };
+  let best: (typeof items)[number] | undefined;
+  for (const it of items) {
+    if (lineId.startsWith(`${it.id}-`) && (!best || it.id.length > best.id.length)) best = it;
+  }
+  if (!best) return { item: undefined, suffix: "" };
+  return { item: best, suffix: lineId.slice(best.id.length) };
 }
 
 // ─── publishMenu ──────────────────────────────────────────────────────────────
@@ -86,15 +107,21 @@ export const placeOrder = createServerFn({ method: "POST" })
     const parsedMenu = menuSchema.safeParse(snap ? parseJson(snap.data) : null);
     if (!parsedMenu.success) throw new Error("المنيو مش متاح دلوقتي");
 
-    const byId = new Map(parsedMenu.data.items.map((i) => [i.id, i]));
-    const unavailable = data.lines.filter((l) => !byId.get(l.itemId)?.available);
+    const resolved = data.lines.map((l) => ({
+      line: l,
+      ...resolveMenuItem(parsedMenu.data.items, l.itemId),
+    }));
+    const unavailable = resolved.filter((r) => !r.item?.available);
     if (unavailable.length) {
-      throw new Error(`الأصناف دي مش متاحة حاليًا: ${unavailable.map((l) => l.name).join("، ")}`);
+      throw new Error(
+        `الأصناف دي مش متاحة حاليًا: ${unavailable.map((r) => r.line.name).join("، ")}`,
+      );
     }
-    const lines = data.lines.map((l) => ({
-      ...l,
-      name: byId.get(l.itemId)!.name,
-      unitPrice: byId.get(l.itemId)!.price,
+    const lines = resolved.map((r) => ({
+      ...r.line,
+      // الاسم الجاي من الواجهة بيحمل نوع الخبز، فبنحتفظ بيه
+      name: r.line.name || r.item!.name,
+      unitPrice: r.item!.price,
     }));
 
     const id = generateUUID();
@@ -105,10 +132,10 @@ export const placeOrder = createServerFn({ method: "POST" })
     await db
       .prepare(
         `INSERT INTO online_orders
-           (id, token, order_no, customer_name, customer_phone, items, total, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
+           (id, token, order_no, customer_name, customer_phone, items, total, table_no, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
       )
-      .bind(id, token, order_no, data.name, data.phone, JSON.stringify(lines), total)
+      .bind(id, token, order_no, data.name, data.phone, JSON.stringify(lines), total, data.tableNo ?? null)
       .run();
 
     return { id, token, orderNo: order_no };

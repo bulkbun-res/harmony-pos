@@ -99,6 +99,13 @@ export const placeOrderSchema = z.object({
     .trim()
     .regex(/^[0-9+\s-]{8,20}$/, CONTACT_MSG),
   lines: z.array(lineSchema).min(1, "اختر صنف واحد على الأقل").max(40),
+  /** رقم الترابيزة — اختياري (لطلب الصالة من المنيو) */
+  tableNo: z
+    .string()
+    .trim()
+    .max(10, "رقم الترابيزة طويل جدًا")
+    .regex(/^[0-9\u0660-\u0669\s-]*$/, "رقم الترابيزة أرقام بس")
+    .optional(),
 });
 
 export const orderKeySchema = z.object({
@@ -151,6 +158,7 @@ export interface OnlineOrderRow {
   payment_method: OnlinePaymentMethod | null;
   paid_amount: number | null;
   paid_at: string | null;
+  table_no: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -168,6 +176,7 @@ export interface CustomerOrderView {
   paymentMethod: OnlinePaymentMethod | null;
   paidAmount: number | null;
   paidAt: string | null;
+  tableNo: string | null;
   createdAt: string;
 }
 
@@ -187,5 +196,6 @@ export const toCustomerView = (row: Record<string, unknown>): CustomerOrderView 
   paymentMethod: (row["payment_method"] ?? null) as OnlinePaymentMethod | null,
   paidAmount: row["paid_amount"] == null ? null : Number(row["paid_amount"]),
   paidAt: (row["paid_at"] ?? null) as string | null,
+  tableNo: (row["table_no"] ?? null) as string | null,
   createdAt: row["created_at"] as string,
 });

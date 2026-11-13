@@ -84,6 +84,7 @@ function MenuScreen() {
   const [cartOpen, setCartOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [tableNo, setTableNo] = useState("");
   const [sending, setSending] = useState(false);
   const [ticket, setTicket] = useState<{ id: string; token: string } | null>(null);
   const [order, setOrder] = useState<CustomerOrderView | null>(null);
@@ -148,8 +149,12 @@ function MenuScreen() {
     if (!menu.items.length) return;
     setCart((prev) => {
       const next = prev.filter((l) => {
-        const baseId = l.itemId.includes("-") ? l.itemId.split("-").slice(0, 2).join("-") : l.itemId;
-        const found = menu.items.find((i) => i.id === l.itemId || i.id === baseId);
+        // "<itemId>-<breadKey>" — بنختار أطول تطابق مش أول شرطة
+        const found =
+          menu.items.find((i) => i.id === l.itemId) ??
+          menu.items
+            .filter((i) => l.itemId.startsWith(`${i.id}-`))
+            .sort((a, b) => b.id.length - a.id.length)[0];
         return found?.available;
       });
       if (next.length !== prev.length) toast.error("في صنف بقى غير متاح واتشال من طلبك");
@@ -186,7 +191,12 @@ function MenuScreen() {
   const count = cart.reduce((s, l) => s + l.qty, 0);
 
   const checkout = async () => {
-    const parsed = placeOrderSchema.safeParse({ name, phone, lines: cart });
+    const parsed = placeOrderSchema.safeParse({
+      name,
+      phone,
+      lines: cart,
+      ...(tableNo.trim() ? { tableNo: tableNo.trim() } : {}),
+    });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "برجاء مراجعة البيانات");
       return;
@@ -459,6 +469,14 @@ function MenuScreen() {
                 placeholder="رقم التليفون"
                 className="h-12 bg-background"
               />
+              <Input
+                value={tableNo}
+                maxLength={10}
+                inputMode="numeric"
+                onChange={(e) => setTableNo(e.target.value)}
+                placeholder="رقم الترابيزة (اختياري — لو قاعد في الصالة)"
+                className="h-12 bg-background"
+              />
             </div>
 
             <div className="mt-4 flex items-center justify-between rounded-xl bg-primary/15 px-4 py-3">
@@ -506,6 +524,9 @@ function OrderTracker({
           />
           <p className="text-xs text-muted-foreground">رقم طلبك</p>
           <p className="text-5xl font-black text-primary">#{order.orderNo}</p>
+          {order.tableNo && (
+            <p className="text-xs font-extrabold text-primary">ترابيزة {order.tableNo}</p>
+          )}
           <div
             className={cn(
               "mt-1 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold",

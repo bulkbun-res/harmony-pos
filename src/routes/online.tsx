@@ -272,6 +272,11 @@ function OnlineScreen() {
                   >
                     {o.customer_phone}
                   </a>
+                  {o.table_no && (
+                    <span className="rounded-lg bg-primary/15 px-2 py-0.5 text-[11px] font-black text-primary">
+                      ترابيزة {o.table_no}
+                    </span>
+                  )}
                   <span className="text-[11px] text-muted-foreground">{fmt(o.created_at)}</span>
                   <span
                     className={cn(
@@ -407,6 +412,7 @@ function OnlineScreen() {
                   <div key={o.id} className="flex items-center justify-between gap-2">
                     <span className="truncate">
                       #{o.order_no} — {o.customer_name}
+                      {o.table_no ? ` — ترابيزة ${o.table_no}` : ""}
                     </span>
                     <span
                       className={cn(
