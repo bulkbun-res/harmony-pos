@@ -63,7 +63,6 @@ import {
   deleteEmployeeFn,
   deleteExpenseFn,
   getAdminMetricsFn,
-  getChannelReportFn,
   getDetailedReportsFn,
   getAttendanceFn,
   getSalaryTransactionsFn,
@@ -79,6 +78,7 @@ import {
 } from "@/lib/admin.functions";
 import { createUserFn, listUsersFn, toggleUserFn, deleteUserFn, updateUserPasswordFn, deleteUserShiftsFn } from "@/lib/auth.functions";
 import { listShiftsFn, deleteShiftFn } from "@/lib/shift.functions";
+import { getChannelReportFn } from "@/lib/orders.functions";
 import { useAuth } from "@/lib/use-auth";
 import { usePos } from "@/lib/pos-store";
 import { EGP } from "@/lib/pos-types";
