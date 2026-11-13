@@ -164,6 +164,8 @@ function PosScreen() {
   const [modifierItem, setModifierItem] = useState<Item | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [editing, setEditing] = useState<Order | null>(null);
+  /** مرآة فورية لحالة التعديل — completeOrder بيقرأ منها مش من الحالة */
+  const editingRef = useRef<Order | null>(null);
   const [saving, setSaving] = useState(false);
   /** حارس ضد الضغط المزدوج — الحالة بتتأخر فريم، الـ ref فوري */
   const savingRef = useRef(false);
@@ -222,6 +224,7 @@ function PosScreen() {
   // استرجاع فاتورة سابقة للتعديل — من الذاكرة أو من السيرفر لو مش في الوردية الحالية
   const loadedRef = useRef<string | null>(null);
   const applyEditing = useCallback((o: Order) => {
+    editingRef.current = o;
     setEditing(o);
     setChannel(o.channel);
     setTableId(o.tableId ?? "");
@@ -241,11 +244,9 @@ function PosScreen() {
   }, []);
 
   useEffect(() => {
-    if (!editId) {
-      loadedRef.current = null;
-      setEditing(null);
-      return;
-    }
+    // ⚠️ متلغيش التعديل لو الـ URL فقد ?order — السلة لسه محمّلة، ولولا كده
+    // أول دفع كان هيعمل فاتورة جديدة بدل ما يعدّل القديمة.
+    if (!editId) return;
     if (loadedRef.current === editId) return;
 
     const cached = state.orders.find((x) => x.id === editId);
@@ -356,6 +357,8 @@ function PosScreen() {
     setLines([]);
     setDiscount(0);
     setEditing(null);
+    editingRef.current = null;
+    loadedRef.current = null;
     setOpenOrderId(null);
     setTalabatRef("");
     if (editId) void navigate({ to: "/", search: { order: undefined } });
@@ -368,11 +371,12 @@ function PosScreen() {
     setSaving(true);
     try {
       let saved: Order;
-      if (editing) {
+      const editingNow = editingRef.current;
+      if (editingNow) {
         // تعديل فاتورة محفوظة — بنحدّثها في مكانها، مش بنعمل نسخة جديدة
         saved = await updateOrderServer({
           data: {
-            orderId: editing.id,
+            orderId: editingNow.id,
             lines: toInput(lines),
             discount,
             paymentMethod: method,
@@ -527,7 +531,11 @@ function PosScreen() {
     setLines([]);
     setDiscount(0);
     setEditing(null);
+    editingRef.current = null;
+    loadedRef.current = null;
+    setOpenOrderId(null);
     void navigate({ to: "/", search: { order: undefined } });
+    toast.info("اتلغى التعديل — الطلب الجديد هيبقى فاتورة جديدة");
   };
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -663,11 +671,11 @@ function PosScreen() {
             <button
               key={c.id}
               onClick={() => {
-                if (editing) {
-                  setEditing(null);
-                  loadedRef.current = null;
-                  void navigate({ to: "/", search: { order: undefined } });
-                  toast.info("خرجت من وضع التعديل");
+                if (editingRef.current) {
+                  toast.error(
+                    `بتعدّل فاتورة #${editingRef.current.orderNo} — اقفل التعديل الأول`,
+                  );
+                  return;
                 }
                 setChannel(c.id);
                 setOpenOrderId(null);
@@ -758,6 +766,20 @@ function PosScreen() {
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5">
+          <span className="text-[11px] font-black text-amber-400">
+            بتعدّل فاتورة #{editing.orderNo} — الحفظ هيعدّل نفس الفاتورة، مش هيعمل جديدة
+          </span>
+          <button
+            onClick={cancelEditing}
+            className="rounded-lg bg-amber-500/20 px-2 py-1 text-[11px] font-black text-amber-300 hover:bg-amber-500/30"
+          >
+            إلغاء التعديل وابدأ جديدة
+          </button>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-row gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4">
         {/* Items area */}
