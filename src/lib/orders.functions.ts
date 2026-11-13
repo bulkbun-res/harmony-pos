@@ -240,15 +240,15 @@ async function recalcOpenOrder(db: D1Database, orderId: string) {
   return recalcOrder(db, orderId);
 }
 
-/** يحدّد الفاتورة مدفوعة بعد إعادة حساب مجاميعها */
+/** يحدّد الفاتورة مدفوعة بعد إعادة حساب مجاميعها (بيشتغل على المفتوحة والمدفوعة) */
 async function markPaid(db: D1Database, orderId: string, method: string) {
-  const sums = await recalcOpenOrder(db, orderId);
+  const sums = await recalcOrder(db, orderId);
   await db.batch([
     db
       .prepare(
         `UPDATE orders SET status = 'paid', total = ?, payment_method = ?,
-                paid_at = ?, updated_at = ?
-          WHERE id = ? AND status = 'open'`,
+                paid_at = COALESCE(paid_at, ?), updated_at = ?
+          WHERE id = ? AND status IN ('open','paid')`,
       )
       .bind(sums.total, method, nowIso(), nowIso(), orderId),
     db
@@ -560,13 +560,8 @@ export const updateOrderFn = createServerFn({ method: "POST" })
     await recalcOrder(db, data.orderId);
 
     if (data.paymentMethod) {
-      await db
-        .prepare(
-          `UPDATE orders SET payment_method = ?, paid_at = COALESCE(paid_at, ?), updated_at = ?
-            WHERE id = ?`,
-        )
-        .bind(data.paymentMethod, nowIso(), nowIso(), data.orderId)
-        .run();
+      // التعديل + الدفع = الفاتورة لازم تتقفل (لو كانت مفتوحة)
+      await markPaid(db, data.orderId, data.paymentMethod);
     }
 
     return loadOrder(db, data.orderId);
@@ -672,6 +667,13 @@ export const payOrderFn = createServerFn({ method: "POST" })
         .bind(round2(data.discount), data.orderId)
         .run();
     }
+
+    const st = await db
+      .prepare("SELECT status FROM orders WHERE id = ?")
+      .bind(data.orderId)
+      .first<{ status: string }>();
+    if (!st) throw new Error("الفاتورة غير موجودة");
+    if (st.status !== "open") throw new Error("الفاتورة مقفولة بالفعل");
 
     await markPaid(db, data.orderId, data.paymentMethod);
     return loadOrder(db, data.orderId);
