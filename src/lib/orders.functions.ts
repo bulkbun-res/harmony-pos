@@ -814,6 +814,100 @@ export const getShiftTotalsFn = createServerFn({ method: "GET" })
     };
   });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// تقارير القنوات (كاشير / صالة / طلبات)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getChannelReportFn = createServerFn({ method: "GET" })
+  .validator(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+  .handler(async ({ data }) => {
+    await requireUser();
+    const db = await getD1();
+    const since = `-${data.days} days`;
+
+    const perChannel = await db
+      .prepare(
+        `SELECT channel,
+                COUNT(*) AS n,
+                ROUND(COALESCE(SUM(total), 0), 2)    AS gross,
+                ROUND(COALESCE(SUM(service), 0), 2)  AS service,
+                ROUND(COALESCE(SUM(discount), 0), 2) AS discount,
+                ROUND(COALESCE(SUM(tax), 0), 2)      AS tax,
+                ROUND(COALESCE(AVG(total), 0), 2)    AS avg_ticket
+           FROM orders
+          WHERE status = 'paid' AND business_date >= date('now', ?)
+          GROUP BY channel`,
+      )
+      .bind(since)
+      .all<{
+        channel: string;
+        n: number;
+        gross: number;
+        service: number;
+        discount: number;
+        tax: number;
+        avg_ticket: number;
+      }>();
+
+    const talabat = await db
+      .prepare(
+        `SELECT COUNT(*) AS n,
+                ROUND(COALESCE(SUM(o.total), 0), 2) AS gross,
+                ROUND(COALESCE(AVG(o.total), 0), 2) AS avg_ticket,
+                SUM(CASE WHEN d.settlement_id IS NULL THEN 1 ELSE 0 END) AS unsettled_n,
+                ROUND(COALESCE(SUM(CASE WHEN d.settlement_id IS NULL THEN o.total ELSE 0 END), 0), 2) AS unsettled_gross
+           FROM orders o
+           JOIN talabat_orders d ON d.order_id = o.id
+          WHERE o.status = 'paid' AND o.business_date >= date('now', ?)`,
+      )
+      .bind(since)
+      .first<{
+        n: number | null;
+        gross: number | null;
+        avg_ticket: number | null;
+        unsettled_n: number | null;
+        unsettled_gross: number | null;
+      }>();
+
+    const tables = await db
+      .prepare(
+        `SELECT tb.id, tb.name,
+                COUNT(*) AS n,
+                ROUND(COALESCE(SUM(o.total), 0), 2)   AS gross,
+                ROUND(COALESCE(SUM(o.service), 0), 2) AS service,
+                ROUND(COALESCE(AVG(o.total), 0), 2)   AS avg_ticket
+           FROM orders o
+           JOIN table_orders t ON t.order_id = o.id
+           JOIN tables tb      ON tb.id = t.table_id
+          WHERE o.status = 'paid' AND o.business_date >= date('now', ?)
+          GROUP BY tb.id
+          ORDER BY gross DESC`,
+      )
+      .bind(since)
+      .all<{ id: string; name: string; n: number; gross: number; service: number; avg_ticket: number }>();
+
+    const settlements = await db
+      .prepare(
+        `SELECT COUNT(*) AS n,
+                ROUND(COALESCE(SUM(gross), 0), 2)      AS gross,
+                ROUND(COALESCE(SUM(commission), 0), 2) AS commission,
+                ROUND(COALESCE(SUM(net), 0), 2)        AS net
+           FROM talabat_settlements
+          WHERE period_to >= date('now', ?)`,
+      )
+      .bind(since)
+      .first<{ n: number; gross: number; commission: number; net: number }>();
+
+    return {
+      days: data.days,
+      channels: perChannel.results ?? [],
+      talabat: talabat ?? { n: 0, gross: 0, avg_ticket: 0, unsettled_n: 0, unsettled_gross: 0 },
+      tables: tables.results ?? [],
+      settlements: settlements ?? { n: 0, gross: 0, commission: 0, net: 0 },
+    };
+  });
+
 // ─────────────────────────────────────────────────────────────────────────────
 // الترابيزات
 // ─────────────────────────────────────────────────────────────────────────────

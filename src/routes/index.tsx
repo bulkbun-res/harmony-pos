@@ -615,83 +615,98 @@ function PosScreen() {
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-row gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4">
-        {/* Items area */}
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          {/* ── تابات القنوات الثلاث ─────────────────────────────────────── */}
-          <div className="flex flex-wrap items-center gap-2">
-            {CHANNELS.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => {
-                  setChannel(c.id);
-                  setEditing(null);
-                  setOpenOrderId(null);
-                  setLines([]);
-                  setDiscount(0);
-                  setTableId("");
-                  setTalabatRef("");
-                }}
-                className={cn(
-                  "h-10 rounded-xl px-4 text-sm font-black transition-all",
-                  channel === c.id
-                    ? "bg-primary text-primary-foreground shadow-lg"
-                    : "bg-card text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {c.short}
-              </button>
-            ))}
-            {channel === "talabat" && (
-              <span className="rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-extrabold text-amber-400">
-                أسعار +{posSettings.talabatMarkupPct}%
-              </span>
-            )}
-            {channel === "table" && posSettings.tablesServicePct > 0 && (
-              <span className="rounded-lg bg-primary/15 px-2 py-1 text-[11px] font-extrabold text-primary">
-                خدمة {posSettings.tablesServicePct}%
-              </span>
-            )}
-          </div>
+      {/* ── شريط القنوات — أفقي بين الهيدر والمحتوى، بارتفاع ثابت ─────────── */}
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-white/5 bg-[#0b1411] px-2 sm:gap-3 sm:px-3">
+        <div className="flex shrink-0 items-center gap-1 rounded-xl bg-black/30 p-1">
+          {CHANNELS.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setChannel(c.id);
+                setEditing(null);
+                setOpenOrderId(null);
+                setLines([]);
+                setDiscount(0);
+                setTableId("");
+                setTalabatRef("");
+              }}
+              className={cn(
+                "h-8 rounded-lg px-3 text-xs font-black transition-all",
+                channel === c.id
+                  ? "bg-primary text-primary-foreground shadow"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {c.short}
+            </button>
+          ))}
+        </div>
+
+        <div className="h-6 w-px shrink-0 bg-white/10" />
+
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+          {channel === "counter" && (
+            <span className="text-[11px] font-bold text-muted-foreground">
+              تيك أواي — السعر الأساسي
+            </span>
+          )}
 
           {channel === "talabat" && (
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 text-xs font-bold text-muted-foreground">
+            <>
+              <span className="shrink-0 text-[11px] font-bold text-muted-foreground">
                 رقم أوردر طلبات
               </span>
               <Input
                 value={talabatRef}
                 onChange={(e) => setTalabatRef(e.target.value)}
                 placeholder="مثال: 4471"
-                className="h-9 max-w-[12rem] rounded-xl bg-card text-sm"
+                className="h-8 w-32 shrink-0 rounded-lg bg-card text-xs"
               />
-            </div>
+              <span className="shrink-0 rounded-lg bg-amber-500/15 px-2 py-1 text-[10px] font-extrabold text-amber-400">
+                +{posSettings.talabatMarkupPct}%
+              </span>
+            </>
           )}
 
           {channel === "table" && (
-            <div className="flex flex-wrap gap-2">
-              {tablesBoard.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => void selectTable(t.id)}
-                  className={cn(
-                    "flex min-w-[6.5rem] flex-col items-center rounded-xl border px-3 py-2 text-xs font-black transition-all",
-                    tableId === t.id
-                      ? "border-primary bg-primary/15 text-primary"
-                      : t.orderId
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
-                        : "border-white/10 bg-card text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span>{t.name}</span>
-                  <span className="text-[10px] font-bold opacity-80">
-                    {t.orderId ? EGP(t.total ?? 0) : "فاضية"}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <>
+              <span className="shrink-0 text-[11px] font-bold text-muted-foreground">
+                الترابيزة
+              </span>
+              <div className="flex items-center gap-1.5">
+                {tablesBoard.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => void selectTable(t.id)}
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-black transition-all",
+                      tableId === t.id
+                        ? "border-primary bg-primary/15 text-primary"
+                        : t.orderId
+                          ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                          : "border-white/10 bg-card text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <span>{t.name}</span>
+                    <span className="text-[10px] font-bold opacity-80">
+                      {t.orderId ? EGP(t.total ?? 0) : "فاضية"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {posSettings.tablesServicePct > 0 && (
+                <span className="shrink-0 rounded-lg bg-primary/15 px-2 py-1 text-[10px] font-extrabold text-primary">
+                  خدمة {posSettings.tablesServicePct}%
+                </span>
+              )}
+            </>
           )}
+        </div>
+      </div>
 
+      <div className="flex min-h-0 flex-1 flex-row gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4">
+        {/* Items area */}
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Input
               value={search}

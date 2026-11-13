@@ -63,6 +63,7 @@ import {
   deleteEmployeeFn,
   deleteExpenseFn,
   getAdminMetricsFn,
+  getChannelReportFn,
   getDetailedReportsFn,
   getAttendanceFn,
   getSalaryTransactionsFn,
@@ -743,6 +744,12 @@ function AdminDashboard() {
                 className="h-10 px-5 font-bold rounded-xl data-[state=active]:bg-primary"
               >
                 المستخدمين والصلاحيات
+              </TabsTrigger>
+              <TabsTrigger
+                value="channels"
+                className="h-10 px-5 font-bold rounded-xl data-[state=active]:bg-primary"
+              >
+                تقارير القنوات 🍽️
               </TabsTrigger>
               <TabsTrigger
                 value="database"
@@ -1803,6 +1810,10 @@ function AdminDashboard() {
             </TabsContent>
 
             {/* 6. DATABASE BACKUP & WIPE TAB */}
+            <TabsContent value="channels" className="space-y-6 mt-4">
+              <ChannelReports />
+            </TabsContent>
+
             <TabsContent value="database" className="space-y-6 mt-4">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {/* النسخ الاحتياطي والاستعادة */}
@@ -2202,6 +2213,154 @@ function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function ChannelReports() {
+  const fetchReport = useServerFn(getChannelReportFn);
+  const [days, setDays] = useState(30);
+  const [data, setData] = useState<Awaited<ReturnType<typeof fetchReport>> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    void fetchReport({ data: { days } })
+      .then((r) => {
+        if (alive) setData(r);
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : "تعذر تحميل التقارير"))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [fetchReport, days]);
+
+  const ch = (id: string) => data?.channels.find((c) => c.channel === id);
+  const counter = ch("counter");
+  const table = ch("table");
+  const talabat = ch("talabat");
+
+  const box = (title: string, value: string, sub: string, tone: string) => (
+    <div className={`rounded-2xl border p-4 ${tone}`}>
+      <p className="text-[11px] font-bold text-muted-foreground">{title}</p>
+      <p className="mt-1 text-xl font-black">{value}</p>
+      <p className="mt-0.5 text-[10px] font-bold text-muted-foreground">{sub}</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-black">تقارير القنوات</h2>
+        <div className="flex items-center gap-1 rounded-xl bg-black/30 p-1">
+          {[
+            { d: 1, l: "النهاردة" },
+            { d: 7, l: "٧ أيام" },
+            { d: 30, l: "٣٠ يوم" },
+            { d: 90, l: "٩٠ يوم" },
+          ].map((o) => (
+            <button
+              key={o.d}
+              onClick={() => setDays(o.d)}
+              className={`h-8 rounded-lg px-3 text-xs font-black transition-all ${
+                days === o.d ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && <p className="text-sm text-muted-foreground">جاري التحميل…</p>}
+
+      {data && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {box(
+              "كاشير / تيك أواي",
+              EGP(counter?.gross ?? 0),
+              `${counter?.n ?? 0} فاتورة — متوسط ${EGP(counter?.avg_ticket ?? 0)}`,
+              "border-white/10 bg-card",
+            )}
+            {box(
+              "صالة / ترابيزات",
+              EGP(table?.gross ?? 0),
+              `${table?.n ?? 0} فاتورة — خدمة ${EGP(table?.service ?? 0)}`,
+              "border-primary/30 bg-primary/5",
+            )}
+            {box(
+              "طلبات",
+              EGP(talabat?.gross ?? 0),
+              `${talabat?.n ?? 0} أوردر — متوسط ${EGP(talabat?.avg_ticket ?? 0)}`,
+              "border-amber-500/30 bg-amber-500/5",
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {box("إجمالي المبيعات", EGP((counter?.gross ?? 0) + (table?.gross ?? 0) + (talabat?.gross ?? 0)), "كل القنوات", "border-white/10 bg-[#0f1b17]")}
+            {box("خدمة الترابيزات", EGP(table?.service ?? 0), "محصلة من الصالة", "border-white/10 bg-[#0f1b17]")}
+            {box("مستحق من طلبات", EGP(data.talabat.unsettled_gross ?? 0), `${data.talabat.unsettled_n ?? 0} أوردر غير مسدد`, "border-amber-500/30 bg-amber-500/5")}
+            {box("عمولات طلبات مسددة", EGP(data.settlements.commission ?? 0), `${data.settlements.n ?? 0} تسوية`, "border-destructive/30 bg-destructive/5")}
+          </div>
+
+          <section className="rounded-2xl border border-white/10 bg-card p-4">
+            <h3 className="mb-3 text-sm font-black">أداء كل ترابيزة</h3>
+            {data.tables.length === 0 ? (
+              <p className="text-xs text-muted-foreground">مفيش فواتير صالة في الفترة دي.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr className="border-b border-white/5">
+                      <th className="py-2 font-bold">الترابيزة</th>
+                      <th className="py-2 font-bold">فواتير</th>
+                      <th className="py-2 font-bold">إجمالي</th>
+                      <th className="py-2 font-bold">المتوسط</th>
+                      <th className="py-2 font-bold">خدمة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.tables.map((t) => (
+                      <tr key={t.id} className="border-b border-white/5 last:border-0">
+                        <td className="py-2 font-extrabold">{t.name}</td>
+                        <td className="py-2">{t.n}</td>
+                        <td className="py-2 font-bold text-primary">{EGP(t.gross)}</td>
+                        <td className="py-2">{EGP(t.avg_ticket)}</td>
+                        <td className="py-2">{EGP(t.service)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <h3 className="mb-3 text-sm font-black text-amber-400">حساب طلبات</h3>
+            <div className="grid gap-3 sm:grid-cols-4 text-xs">
+              <div>
+                <p className="text-muted-foreground">إجمالي المبيعات</p>
+                <p className="mt-0.5 text-base font-black">{EGP(talabat?.gross ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">غير مسدد</p>
+                <p className="mt-0.5 text-base font-black text-amber-400">{EGP(data.talabat.unsettled_gross ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">عمولات مسددة</p>
+                <p className="mt-0.5 text-base font-black text-destructive">{EGP(data.settlements.commission ?? 0)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">صافي التحويلات</p>
+                <p className="mt-0.5 text-base font-black text-primary">{EGP(data.settlements.net ?? 0)}</p>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

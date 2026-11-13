@@ -136,7 +136,7 @@ function SettingsPage() {
               الاستهلاك
             </TabsTrigger>
             <TabsTrigger value="general" className="h-10 px-5 font-bold">
-              عام
+              القنوات والترابيزات 🍽️
             </TabsTrigger>
           </TabsList>
 
