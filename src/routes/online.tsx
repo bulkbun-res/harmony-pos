@@ -212,6 +212,7 @@ function OnlineScreen() {
         lineTotal: l.unitPrice * l.qty,
         kind: "item" as const,
         parentLineId: null,
+        modifiers: [],
         modifierNames: [],
         note: null,
         voided: false,
