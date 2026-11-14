@@ -234,7 +234,7 @@ function PosScreen() {
         name: l.name,
         unitPrice: l.basePrice,
         qty: l.qty,
-        modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
+        modifiers: l.modifiers,
       })),
     );
   }, []);
@@ -454,7 +454,7 @@ function PosScreen() {
           name: l.name,
           unitPrice: l.basePrice,
           qty: l.qty,
-          modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
+          modifiers: l.modifiers,
         })),
       );
       setDiscount(saved.discount);
@@ -487,7 +487,7 @@ function PosScreen() {
             name: l.name,
             unitPrice: l.basePrice,
             qty: l.qty,
-            modifiers: l.modifierNames.map((n) => ({ id: n, name: n, price: 0 })),
+            modifiers: l.modifiers,
           })),
         );
       } catch (e) {
@@ -535,6 +535,7 @@ function PosScreen() {
         lineTotal: lineTotal(l),
         kind: "item" as const,
         parentLineId: null,
+        modifiers: l.modifiers,
         modifierNames: l.modifiers.map((m) => m.name),
         note: null,
         voided: false,

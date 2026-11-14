@@ -37,6 +37,8 @@ export interface OrderLineDTO {
   lineTotal: number;
   kind: "item" | "modifier";
   parentLineId: string | null;
+  /** الإضافات كاملة (id + name + price) — الـ id لازم للسيرفر */
+  modifiers: { id: string; name: string; price: number }[];
   modifierNames: string[];
   note: string | null;
   voided: boolean;
