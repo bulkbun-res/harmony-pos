@@ -295,7 +295,8 @@ function MenuScreen() {
         {items.map((item) => {
           const isSandwich = Boolean(SANDWICH_IMAGES_MAP[item.id]);
           const currentBread = selectedBreads[item.id] || "french";
-          const itemImg = resolveOnlineItemImage(item, currentBread);
+          const groupName = groups.find((g) => g.id === item.groupId)?.name ?? "";
+          const itemImg = resolveOnlineItemImage(item, currentBread, groupName);
           const displayName = item.id === "sl-turkish" ? "تركي مدخن" : item.name;
 
           return (

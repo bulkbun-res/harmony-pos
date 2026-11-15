@@ -121,6 +121,7 @@ import imgEspressoShot from "@/assets/online-menu/others/drinks-espresso-shot.we
 import imgLemon from "@/assets/online-menu/others/drinks-lemon.webp";
 import imgAffogato from "@/assets/online-menu/others/drinks-affogato.webp";
 import imgHerbs from "@/assets/online-menu/others/drinks-herbs.webp";
+import { resolveItemImage } from "./menu-images";
 
 export interface SandwichBreadImages {
   defaultHero: string;
@@ -226,7 +227,34 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "lke0p4f9": imgIcedMocha,
   "gvs637lq": imgFrappe,
   "d68edibr": imgFrappe,
+  "ck07ormc": imgLatte,        // سحلب مكسرات
+  "bx3xauxr": imgTea,          // هوت سيدر
+  "uez3k94m": imgCappuccino,   // هوت شوكليت
+  "zdctw4b7": imgMatcha,       // هوت ماتشا
+  "3xczgstb": imgIcedMocha,    // موكا
+  "56a3ul2b": imgCappuccino,   // هوت لوتس
+  "qqfe5by2": imgLatte,        // فرنساوي دبل
+  "1ptexqut": imgCoffee,       // قهوه بندق
+  "g1bm47mu": imgCoffee,       // بندق دبل
+  "jh758g7t": imgEspresso,     // قهوه دبل
+  "695no9vc": imgHerbs,        // اعشاب برتقال
+  "qnk5zxhj": imgEspressoShot, // كورتادو
+  "a3hfrb1e": imgEspressoShot, // دبل كورتادو
+  "kibrbrvs": imgEspressoShot, // دبل ميكاتو
+  "n7fj79as": imgLatte,        // لبن (ساخن)
+  "7f3hwwn0": imgEspressoShot, // شوت سبريسو (ساخن)
+  "jek5jith": imgFrappe,       // سموزي
+  "0ow003zr": imgLemon,        // كيوي
+  "xh8nuvzv": imgIcedLatte,    // ايس سبانش لاتيه
+  "gs566mxs": imgFrappe,       // زبادي عسل
+  "b0ohjcmc": imgStrawberry,   // زبادي فواكه
+  "prufrt2p": imgLatte,        // لبن (بارد)
+  "ynoraa5k": imgEspressoShot, // شوت سبريسو (بارد)
+  "egz7dnex": imgTea,          // ايس تي
+  "alb0kz7w": imgPastaShrimp,  // شريمب رزويه
+  "hi9msdal": imgPastaChicken, // بيستو تشيكن باستا
 };
+
 
 /**
  * تحديد صورة الخبز التفاعلية لساندوتش معين بناءً على نوع الخبز المختار
@@ -259,24 +287,38 @@ export function getInteractiveSandwichImage(itemId: string, selectedModifierName
 /**
  * يرجع الصورة المناسبة لأي صنف في المنيو الإلكتروني
  */
+/** صورة افتراضية مناسبة للفئة بدل ما كل حاجة تاخد صورة ساندويتش */
+function categoryFallback(item: { groupId: string }, groupName?: string): string {
+  const g = `${item.groupId} ${groupName ?? ""}`.toLowerCase();
+  if (g.includes("drink") || g.includes("coffee") || g.includes("مشروب") || g.includes("عصير") || g.includes("قهوة")) {
+    return imgLatte;
+  }
+  if (g.includes("pasta") || g.includes("مكرون")) return imgPastaChicken;
+  if (g.includes("salad") || g.includes("سلط")) return imgSaladCaesar;
+  if (g.includes("potato") || g.includes("بطاطس") || g.includes("fries")) return imgFriesLarge;
+  if (g.includes("sandwich") || g.includes("ساندويتش")) return hmFrench;
+  return imgLatte;
+}
+
 export function resolveOnlineItemImage(
   item: { id: string; groupId: string; image?: string | undefined },
   selectedModifier?: string,
+  groupName?: string,
 ): string {
-  // 1. إذا كان ساندوتش
+  // 1. ساندوتش مسجل بلصورة الخبز التفاعلية
   const swImg = getInteractiveSandwichImage(item.id, selectedModifier);
   if (swImg) return swImg;
 
-  // 2. إذا كان صنف آخر مسجل في المكتبة
-  if (OTHER_ITEMS_MAP[item.id]) {
-    return OTHER_ITEMS_MAP[item.id] as string;
+  // 2. المكتبة المنسقة للمنيو الإلكتروني
+  const curated = OTHER_ITEMS_MAP[item.id];
+  if (curated) return curated;
+
+  // 3. صورة الصنف نفسها (local:key من البرنامج، أو رابط خارجي)
+  const raw = item.image?.trim();
+  if (raw && (raw.startsWith("local:") || raw.startsWith("http://") || raw.startsWith("https://"))) {
+    return resolveItemImage(item);
   }
 
-  // 3. رابط خارجي مباشر لو كان موجوداً
-  if (item.image?.startsWith("http://") || item.image?.startsWith("https://")) {
-    return item.image as string;
-  }
-
-  // 4. صورة عامة كحل أخير
-  return hmFrench;
+  // 4. صورة افتراضية مناسبة للفئة
+  return categoryFallback(item, groupName);
 }
