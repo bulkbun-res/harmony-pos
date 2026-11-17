@@ -128,6 +128,12 @@ import imgNDFrench from "@/assets/online-menu/drink-fixes/french-coffee.jpg";
 import imgNDMilkshake from "@/assets/online-menu/drink-fixes/milkshake.jpg";
 import imgNDSmoothie from "@/assets/online-menu/drink-fixes/smoothie.jpg";
 import imgSauce from "@/assets/menu/sides-1.jpg";
+import imgNDSahlab from "@/assets/online-menu/drink-fixes/sahlab.jpg";
+import imgNDMilk from "@/assets/online-menu/drink-fixes/milk.jpg";
+import imgNDHotChoc from "@/assets/online-menu/drink-fixes/hot-chocolate.jpg";
+import imgNDHotCider from "@/assets/online-menu/drink-fixes/hot-cider.jpg";
+import imgNDYogurt from "@/assets/online-menu/drink-fixes/yogurt-honey.jpg";
+import imgNDKiwi from "@/assets/online-menu/drink-fixes/kiwi-juice.jpg";
 import { resolveItemImage } from "./menu-images";
 
 export interface SandwichBreadImages {
@@ -242,22 +248,22 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "qqfe5by2": imgNDFrench,        // فرنساوي دبل
   "kibrbrvs": imgCappuccino,      // دبل ميكاتو
   "tsgyk99x": imgSauce,           // صوص
-  "ck07ormc": imgLatte,        // سحلب مكسرات
-  "bx3xauxr": imgTea,          // هوت سيدر
-  "uez3k94m": imgCappuccino,   // هوت شوكليت
+  "ck07ormc": imgNDSahlab,      // سحلب مكسرات        // سحلب مكسرات
+  "bx3xauxr": imgNDHotCider,    // هوت سيدر          // هوت سيدر
+  "uez3k94m": imgNDHotChoc,     // هوت شوكليت   // هوت شوكليت
   "zdctw4b7": imgMatcha,       // هوت ماتشا
   "56a3ul2b": imgCappuccino,   // هوت لوتس
   "1ptexqut": imgCoffee,       // قهوه بندق
   "g1bm47mu": imgCoffee,       // بندق دبل
   "jh758g7t": imgEspresso,     // قهوه دبل
   "695no9vc": imgHerbs,        // اعشاب برتقال
-  "n7fj79as": imgLatte,        // لبن (ساخن)
+  "n7fj79as": imgNDMilk,        // لبن ساخن        // لبن (ساخن)
   "7f3hwwn0": imgEspressoShot, // شوت سبريسو (ساخن)
-  "0ow003zr": imgLemon,        // كيوي
+  "0ow003zr": imgNDKiwi,        // كيوي        // كيوي
   "xh8nuvzv": imgIcedLatte,    // ايس سبانش لاتيه
-  "gs566mxs": imgFrappe,       // زبادي عسل
+  "gs566mxs": imgNDYogurt,      // زبادي عسل       // زبادي عسل
   "b0ohjcmc": imgStrawberry,   // زبادي فواكه
-  "prufrt2p": imgLatte,        // لبن (بارد)
+  "prufrt2p": imgNDMilk,        // لبن بارد        // لبن (بارد)
   "ynoraa5k": imgEspressoShot, // شوت سبريسو (بارد)
   "alb0kz7w": imgPastaShrimp,  // شريمب رزويه
   "hi9msdal": imgPastaChicken, // بيستو تشيكن باستا
