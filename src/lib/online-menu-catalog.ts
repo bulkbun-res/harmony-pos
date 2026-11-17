@@ -121,6 +121,13 @@ import imgEspressoShot from "@/assets/online-menu/others/drinks-espresso-shot.we
 import imgLemon from "@/assets/online-menu/others/drinks-lemon.webp";
 import imgAffogato from "@/assets/online-menu/others/drinks-affogato.webp";
 import imgHerbs from "@/assets/online-menu/others/drinks-herbs.webp";
+import imgNDIcedTea from "@/assets/online-menu/drink-fixes/iced-tea.jpg";
+import imgNDCortado from "@/assets/online-menu/drink-fixes/cortado.jpg";
+import imgNDMocha from "@/assets/online-menu/drink-fixes/mocha-hot.jpg";
+import imgNDFrench from "@/assets/online-menu/drink-fixes/french-coffee.jpg";
+import imgNDMilkshake from "@/assets/online-menu/drink-fixes/milkshake.jpg";
+import imgNDSmoothie from "@/assets/online-menu/drink-fixes/smoothie.jpg";
+import imgSauce from "@/assets/menu/sides-1.jpg";
 import { resolveItemImage } from "./menu-images";
 
 export interface SandwichBreadImages {
@@ -226,31 +233,32 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "694shfte": imgIcedLatte,
   "lke0p4f9": imgIcedMocha,
   "gvs637lq": imgFrappe,
-  "d68edibr": imgFrappe,
+  "d68edibr": imgNDMilkshake,     // ميلك شيك
+  "jek5jith": imgNDSmoothie,      // سموزي
+  "egz7dnex": imgNDIcedTea,       // ايس تي
+  "qnk5zxhj": imgNDCortado,      // كورتادو
+  "a3hfrb1e": imgNDFrench,        // دبل كورتادو
+  "3xczgstb": imgNDMocha,         // موكا ساخن
+  "qqfe5by2": imgNDFrench,        // فرنساوي دبل
+  "kibrbrvs": imgCappuccino,      // دبل ميكاتو
+  "tsgyk99x": imgSauce,           // صوص
   "ck07ormc": imgLatte,        // سحلب مكسرات
   "bx3xauxr": imgTea,          // هوت سيدر
   "uez3k94m": imgCappuccino,   // هوت شوكليت
   "zdctw4b7": imgMatcha,       // هوت ماتشا
-  "3xczgstb": imgIcedMocha,    // موكا
   "56a3ul2b": imgCappuccino,   // هوت لوتس
-  "qqfe5by2": imgLatte,        // فرنساوي دبل
   "1ptexqut": imgCoffee,       // قهوه بندق
   "g1bm47mu": imgCoffee,       // بندق دبل
   "jh758g7t": imgEspresso,     // قهوه دبل
   "695no9vc": imgHerbs,        // اعشاب برتقال
-  "qnk5zxhj": imgEspressoShot, // كورتادو
-  "a3hfrb1e": imgEspressoShot, // دبل كورتادو
-  "kibrbrvs": imgEspressoShot, // دبل ميكاتو
   "n7fj79as": imgLatte,        // لبن (ساخن)
   "7f3hwwn0": imgEspressoShot, // شوت سبريسو (ساخن)
-  "jek5jith": imgFrappe,       // سموزي
   "0ow003zr": imgLemon,        // كيوي
   "xh8nuvzv": imgIcedLatte,    // ايس سبانش لاتيه
   "gs566mxs": imgFrappe,       // زبادي عسل
   "b0ohjcmc": imgStrawberry,   // زبادي فواكه
   "prufrt2p": imgLatte,        // لبن (بارد)
   "ynoraa5k": imgEspressoShot, // شوت سبريسو (بارد)
-  "egz7dnex": imgTea,          // ايس تي
   "alb0kz7w": imgPastaShrimp,  // شريمب رزويه
   "hi9msdal": imgPastaChicken, // بيستو تشيكن باستا
 };
