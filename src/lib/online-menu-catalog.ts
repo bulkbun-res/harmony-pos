@@ -199,6 +199,10 @@ export const SANDWICH_IMAGES_MAP: Record<string, SandwichBreadImages> = {
   "sm-cottage": { defaultHero: cotFrench, french: cotFrench, wheat: cotWheat, brown: cotBrown, tortilla: cotTortilla },
 
   // Healthy Potato Sandwich
+  // Extra Cheese (Jibtan) — اكسترا تشيز صغير وكبير
+  "3ifpb537": { defaultHero: rcFrench, french: rcFrench, wheat: rcWheat, brown: rcBrown, tortilla: rcTortilla },
+  "zlfycqcb": { defaultHero: rcFrench, french: rcFrench, wheat: rcWheat, brown: rcBrown, tortilla: rcTortilla },
+
   "sl-healthy-potato": { defaultHero: potFrench, french: potFrench, wheat: potWheat, brown: potBrown, tortilla: potTortilla },
   "sm-healthy-potato": { defaultHero: potFrench, french: potFrench, wheat: potWheat, brown: potBrown, tortilla: potTortilla },
 };
@@ -247,7 +251,8 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "3xczgstb": imgNDMocha,         // موكا ساخن
   "qqfe5by2": imgNDFrench,        // فرنساوي دبل
   "kibrbrvs": imgCappuccino,      // دبل ميكاتو
-  "tsgyk99x": imgSauce,           // صوص
+  "tsgyk99x": imgSauce,
+  "evbpxctd": imgRedBull,      // Green Energy           // صوص
   "ck07ormc": imgNDSahlab,      // سحلب مكسرات        // سحلب مكسرات
   "bx3xauxr": imgNDHotCider,    // هوت سيدر          // هوت سيدر
   "uez3k94m": imgNDHotChoc,     // هوت شوكليت   // هوت شوكليت
