@@ -18,3 +18,8 @@
 | yogurt-honey.jpg | زبادي عسل | by | Average Jane | https://www.flickr.com/photos/64401168@N00/3604928038 |
 | kiwi-juice.jpg | كيوي | by-sa | gadl | https://www.flickr.com/photos/24183489@N00/193763879 |
 | double-cortado.jpg | دبل كورتادو | CC BY 2.0 | James Cridland | https://www.flickr.com/photos/18378655@N00/14912772276 |
+| user-milk.jpg | لبن | صورة مقدّمة من صاحب المحل | — | (مقدّمة مباشرة) |
+| user-kiwi.jpg | كيوي | صورة مقدّمة من صاحب المحل | — | (مقدّمة مباشرة) |
+| user-yogurt.jpg | زبادي عسل | صورة مقدّمة من صاحب المحل | — | (مقدّمة مباشرة) |
+| user-french.jpg | فرنساوي دبل | صورة مقدّمة من صاحب المحل | — | (مقدّمة مباشرة) |
+| user-icedcoffee.jpg | ايس كوفي | صورة مقدّمة من صاحب المحل | — | (مقدّمة مباشرة) |

@@ -123,6 +123,11 @@ import imgAffogato from "@/assets/online-menu/others/drinks-affogato.webp";
 import imgHerbs from "@/assets/online-menu/others/drinks-herbs.webp";
 import imgNDIcedTea from "@/assets/online-menu/drink-fixes/iced-tea.jpg";
 import imgNDDoubleCortado from "@/assets/online-menu/drink-fixes/double-cortado.jpg";
+import imgUserMilk from "@/assets/online-menu/drink-fixes/user-milk.jpg";
+import imgUserKiwi from "@/assets/online-menu/drink-fixes/user-kiwi.jpg";
+import imgUserYogurt from "@/assets/online-menu/drink-fixes/user-yogurt.jpg";
+import imgUserFrench from "@/assets/online-menu/drink-fixes/user-french.jpg";
+import imgUserIcedCoffee from "@/assets/online-menu/drink-fixes/user-icedcoffee.jpg";
 import imgNDCortado from "@/assets/online-menu/drink-fixes/cortado.jpg";
 import imgNDMocha from "@/assets/online-menu/drink-fixes/mocha-hot.jpg";
 import imgNDFrench from "@/assets/online-menu/drink-fixes/french-coffee.jpg";
@@ -240,7 +245,7 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "ra9r2bka": imgLemon,
   "x2sg8vjt": imgMojito,
   "b4zcwfpm": imgMatcha,
-  "af5sx3h3": imgIcedCoffee,
+  "af5sx3h3": imgUserIcedCoffee,  // ايس كوفي (صورة العميل)
   "694shfte": imgIcedLatte,
   "lke0p4f9": imgIcedMocha,
   "gvs637lq": imgFrappe,
@@ -250,7 +255,7 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "qnk5zxhj": imgNDCortado,      // كورتادو
   "a3hfrb1e": imgNDDoubleCortado, // دبل كورتادو
   "3xczgstb": imgNDMocha,         // موكا ساخن
-  "qqfe5by2": imgNDFrench,        // فرنساوي دبل
+  "qqfe5by2": imgUserFrench,      // فرنساوي دبل
   "kibrbrvs": imgCappuccino,      // دبل ميكاتو
   "tsgyk99x": imgSauce,
   "evbpxctd": imgRedBull,      // Green Energy           // صوص
@@ -265,11 +270,11 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "695no9vc": imgHerbs,        // اعشاب برتقال
   "n7fj79as": imgLatte,          // لبن ساخن
   "7f3hwwn0": imgEspressoShot, // شوت سبريسو (ساخن)
-  "0ow003zr": imgNDKiwi,        // كيوي        // كيوي
+  "0ow003zr": imgUserKiwi,        // كيوي
   "xh8nuvzv": imgIcedLatte,    // ايس سبانش لاتيه
-  "gs566mxs": imgNDYogurt,      // زبادي عسل       // زبادي عسل
+  "gs566mxs": imgUserYogurt,      // زبادي عسل
   "b0ohjcmc": imgStrawberry,   // زبادي فواكه
-  "prufrt2p": imgIcedLatte,      // لبن بارد
+  "prufrt2p": imgUserMilk,        // لبن
   "ynoraa5k": imgEspressoShot, // شوت سبريسو (بارد)
   "alb0kz7w": imgPastaShrimp,  // شريمب رزويه
   "hi9msdal": imgPastaChicken, // بيستو تشيكن باستا
