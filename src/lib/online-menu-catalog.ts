@@ -122,6 +122,7 @@ import imgLemon from "@/assets/online-menu/others/drinks-lemon.webp";
 import imgAffogato from "@/assets/online-menu/others/drinks-affogato.webp";
 import imgHerbs from "@/assets/online-menu/others/drinks-herbs.webp";
 import imgNDIcedTea from "@/assets/online-menu/drink-fixes/iced-tea.jpg";
+import imgNDDoubleCortado from "@/assets/online-menu/drink-fixes/double-cortado.jpg";
 import imgNDCortado from "@/assets/online-menu/drink-fixes/cortado.jpg";
 import imgNDMocha from "@/assets/online-menu/drink-fixes/mocha-hot.jpg";
 import imgNDFrench from "@/assets/online-menu/drink-fixes/french-coffee.jpg";
@@ -247,7 +248,7 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "jek5jith": imgNDSmoothie,      // سموزي
   "egz7dnex": imgNDIcedTea,       // ايس تي
   "qnk5zxhj": imgNDCortado,      // كورتادو
-  "a3hfrb1e": imgNDFrench,        // دبل كورتادو
+  "a3hfrb1e": imgNDDoubleCortado, // دبل كورتادو
   "3xczgstb": imgNDMocha,         // موكا ساخن
   "qqfe5by2": imgNDFrench,        // فرنساوي دبل
   "kibrbrvs": imgCappuccino,      // دبل ميكاتو
@@ -262,13 +263,13 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "g1bm47mu": imgCoffee,       // بندق دبل
   "jh758g7t": imgEspresso,     // قهوه دبل
   "695no9vc": imgHerbs,        // اعشاب برتقال
-  "n7fj79as": imgNDMilk,        // لبن ساخن        // لبن (ساخن)
+  "n7fj79as": imgLatte,          // لبن ساخن
   "7f3hwwn0": imgEspressoShot, // شوت سبريسو (ساخن)
   "0ow003zr": imgNDKiwi,        // كيوي        // كيوي
   "xh8nuvzv": imgIcedLatte,    // ايس سبانش لاتيه
   "gs566mxs": imgNDYogurt,      // زبادي عسل       // زبادي عسل
   "b0ohjcmc": imgStrawberry,   // زبادي فواكه
-  "prufrt2p": imgNDMilk,        // لبن بارد        // لبن (بارد)
+  "prufrt2p": imgIcedLatte,      // لبن بارد
   "ynoraa5k": imgEspressoShot, // شوت سبريسو (بارد)
   "alb0kz7w": imgPastaShrimp,  // شريمب رزويه
   "hi9msdal": imgPastaChicken, // بيستو تشيكن باستا
