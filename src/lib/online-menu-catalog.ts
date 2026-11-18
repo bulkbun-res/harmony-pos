@@ -128,6 +128,18 @@ import imgUserKiwi from "@/assets/online-menu/drink-fixes/user-kiwi.jpg";
 import imgUserYogurt from "@/assets/online-menu/drink-fixes/user-yogurt.jpg";
 import imgUserFrench from "@/assets/online-menu/drink-fixes/user-french.jpg";
 import imgUserIcedCoffee from "@/assets/online-menu/drink-fixes/user-icedcoffee.jpg";
+import imgDDBananaMilk from "@/assets/online-menu/drink-fixes/dd-banana-milk.jpg";
+import imgDDMango from "@/assets/online-menu/drink-fixes/dd-mango.jpg";
+import imgDDGuava from "@/assets/online-menu/drink-fixes/dd-guava.jpg";
+import imgDDStrawberry from "@/assets/online-menu/drink-fixes/dd-strawberry.jpg";
+import imgDDOrange from "@/assets/online-menu/drink-fixes/dd-orange.jpg";
+import imgDDIcedMocha from "@/assets/online-menu/drink-fixes/dd-iced-mocha.jpg";
+import imgDDIcedLatte from "@/assets/online-menu/drink-fixes/dd-iced-latte.jpg";
+import imgDDIcedCoffee from "@/assets/online-menu/drink-fixes/dd-iced-coffee.jpg";
+import imgDDFrappe from "@/assets/online-menu/drink-fixes/dd-frappe.jpg";
+import imgDDMojito from "@/assets/online-menu/drink-fixes/dd-mojito.jpg";
+import imgDDIcedMatcha from "@/assets/online-menu/drink-fixes/dd-iced-matcha.jpg";
+import imgDDMatchaMilkshake from "@/assets/online-menu/drink-fixes/dd-matcha-milkshake.jpg";
 import imgNDCortado from "@/assets/online-menu/drink-fixes/cortado.jpg";
 import imgNDMocha from "@/assets/online-menu/drink-fixes/mocha-hot.jpg";
 import imgNDFrench from "@/assets/online-menu/drink-fixes/french-coffee.jpg";
@@ -221,11 +233,11 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "sa-caesar": imgSaladCaesar,
   "hyx4k58m": imgFriesLarge,
   "2hihobhf": imgFriesSmall,
-  "dc-banana": imgBanana,
-  "dc-mango": imgMango,
-  "dc-guava": imgGuava,
-  "dc-strawberry": imgStrawberry,
-  "dc-orange": imgOrange,
+  "dc-banana": imgDDBananaMilk,
+  "dc-mango": imgDDMango,
+  "dc-guava": imgDDGuava,
+  "dc-strawberry": imgDDStrawberry,
+  "dc-orange": imgDDOrange,
   "dh-tea": imgTea,
   "dh-coffee": imgCoffee,
   "dh-espresso-s": imgEspressoShot,
@@ -243,13 +255,13 @@ export const OTHER_ITEMS_MAP: Record<string, string> = {
   "dc-suntop": imgSuntop,
   "dc-affogato": imgAffogato,
   "ra9r2bka": imgLemon,
-  "x2sg8vjt": imgMojito,
-  "b4zcwfpm": imgMatcha,
-  "af5sx3h3": imgUserIcedCoffee,  // ايس كوفي (صورة العميل)
-  "694shfte": imgIcedLatte,
-  "lke0p4f9": imgIcedMocha,
-  "gvs637lq": imgFrappe,
-  "d68edibr": imgNDMilkshake,     // ميلك شيك
+  "x2sg8vjt": imgDDMojito,
+  "b4zcwfpm": imgDDIcedMatcha,
+  "af5sx3h3": imgDDIcedCoffee,
+  "694shfte": imgDDIcedLatte,
+  "lke0p4f9": imgDDIcedMocha,
+  "gvs637lq": imgDDFrappe,
+  "d68edibr": imgDDMatchaMilkshake,
   "jek5jith": imgNDSmoothie,      // سموزي
   "egz7dnex": imgNDIcedTea,       // ايس تي
   "qnk5zxhj": imgNDCortado,      // كورتادو
