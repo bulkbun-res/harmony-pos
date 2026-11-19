@@ -149,6 +149,17 @@ export const setStatusSchema = z.object({
   applyProposed: z.boolean().optional(),
 });
 
+/** حالة دفع الطلب الأونلاين — منفصلة عن حالة الطلب نفسه */
+export type OnlinePaymentStatus = "unpaid" | "cod" | "pending_review" | "verified" | "rejected";
+
+export const ONLINE_PAYMENT_STATUS_LABEL: Record<OnlinePaymentStatus, string> = {
+  unpaid: "غير مدفوع",
+  cod: "دفع عند الاستلام",
+  pending_review: "بانتظار التحقق",
+  verified: "تم التحقق",
+  rejected: "إيصال مرفوض",
+};
+
 export interface OnlineOrderRow {
   id: string;
   order_no: number;
