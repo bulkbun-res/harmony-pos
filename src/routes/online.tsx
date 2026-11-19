@@ -140,6 +140,7 @@ function OnlineScreen() {
       lines: lines.map((l) => ({ itemId: l.itemId, qty: l.qty })),
       idempotencyKey: `online-${o.id}`,
       customerName: `${o.customer_name} — ${o.customer_phone}`,
+      ...(o.discount > 0 ? { discount: o.discount } : {}),
     });
     await setStatus({ data: { id: o.id, status: "preparing", applyProposed: useProposed } });
     toast.success(`جاري تجهيز الطلب #${o.order_no} — اتخصم من المخزن`);
@@ -148,8 +149,9 @@ function OnlineScreen() {
 
   /** إجمالي الفاتورة النهائي للطلب الأونلاين */
   const invoiceTotal = (o: OnlineOrderRow) => {
-    const subtotal = sumLines(o.items);
-    return { subtotal, service: 0, tax: 0, total: subtotal };
+    const subtotal = o.subtotal || sumLines(o.items);
+    const discount = o.discount || 0;
+    return { subtotal, discount, service: 0, tax: 0, total: o.total || Math.max(0, subtotal - discount) };
   };
 
   /** تأكيد الدفع — بيسدد الفاتورة المفتوحة المرتبطة بالطلب */
@@ -162,6 +164,7 @@ function OnlineScreen() {
       idempotencyKey: `online-${o.id}`,
       payNow: method,
       customerName: `${o.customer_name} — ${o.customer_phone}`,
+      ...(o.discount > 0 ? { discount: o.discount } : {}),
     });
     toast.success(
       `تم تأكيد الدفع (${ONLINE_PAYMENT_LABEL[method as OnlinePaymentMethod]}) — ${EGP(saved.total)}`,
@@ -273,6 +276,11 @@ function OnlineScreen() {
                   >
                     {o.customer_phone}
                   </a>
+                  {o.discount > 0 && (
+                    <span className="rounded-lg bg-emerald-500/15 px-2 py-0.5 text-[11px] font-black text-emerald-400">
+                      خصم {o.promo_code ?? ""}
+                    </span>
+                  )}
                   {o.table_no && (
                     <span className="rounded-lg bg-primary/15 px-2 py-0.5 text-[11px] font-black text-primary">
                       ترابيزة {o.table_no}

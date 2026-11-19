@@ -14,6 +14,8 @@ import {
   type PublicMenu,
 } from "./online-schemas";
 import { generateUUID, nextOrderNo, getD1 } from "@/integrations/d1/client.server";
+import { findValidPromo, explainPromoFailure } from "./promo.server";
+import { round2 } from "./orders-types";
 
 // ─── helper: parse JSON safely ────────────────────────────────────────────────
 function parseJson<T>(val: unknown): T {
@@ -29,6 +31,9 @@ function rowToOrderRow(row: Record<string, unknown>): OnlineOrderRow {
     customer_name: row["customer_name"] as string,
     customer_phone: row["customer_phone"] as string,
     items: parseJson(row["items"]),
+    subtotal: Number(row["subtotal"] ?? 0),
+    discount: Number(row["discount"] ?? 0),
+    promo_code: (row["promo_code"] ?? null) as string | null,
     total: Number(row["total"] ?? 0),
     status: row["status"] as OnlineOrderRow["status"],
     proposed_items: row["proposed_items"] ? parseJson(row["proposed_items"]) : null,
@@ -124,21 +129,46 @@ export const placeOrder = createServerFn({ method: "POST" })
       unitPrice: r.item!.price,
     }));
 
+    const subtotal = round2(sumLines(lines));
+
+    // ── كود الخصم: التحقق والحساب على السيرفر (المتصفح ما يقدرش يزوّره)
+    let discount = 0;
+    let promoCode: string | null = null;
+    let promoId: string | null = null;
+    if (data.promoCode?.trim()) {
+      const promo = await findValidPromo(db, data.promoCode);
+      if (!promo) throw new Error(await explainPromoFailure(db, data.promoCode));
+      discount = round2(subtotal * (Number(promo.discount_pct) / 100));
+      promoCode = promo.code;
+      promoId = promo.id;
+    }
+    const total = round2(Math.max(0, subtotal - discount));
+
     const id = generateUUID();
     const token = generateUUID();
     const order_no = await nextOrderNo(db);
-    const total = sumLines(lines);
 
     await db
       .prepare(
         `INSERT INTO online_orders
-           (id, token, order_no, customer_name, customer_phone, items, total, table_no, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
+           (id, token, order_no, customer_name, customer_phone, items, subtotal, discount, promo_code, total, table_no, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
       )
-      .bind(id, token, order_no, data.name, data.phone, JSON.stringify(lines), total, data.tableNo ?? null)
+      .bind(
+        id, token, order_no, data.name, data.phone, JSON.stringify(lines),
+        subtotal, discount, promoCode, total, data.tableNo ?? null,
+      )
       .run();
 
-    return { id, token, orderNo: order_no };
+    // عدّاد الاستخدام بعد نجاح الحجز
+    if (promoId) {
+      await db
+        .prepare("UPDATE promos SET used_count = used_count + 1 WHERE id = ?")
+        .bind(promoId)
+        .run();
+    }
+
+    return { id, token, orderNo: order_no, subtotal, discount, promoCode, total };
   });
 
 // ─── getOrderStatus ───────────────────────────────────────────────────────────

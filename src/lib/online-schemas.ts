@@ -106,6 +106,8 @@ export const placeOrderSchema = z.object({
     .max(10, "رقم الترابيزة طويل جدًا")
     .regex(/^[0-9\u0660-\u0669\s-]*$/, "رقم الترابيزة أرقام بس")
     .optional(),
+  /** كود خصم — اختياري، والتحقق منه على السيرفر */
+  promoCode: z.string().trim().max(24).optional(),
 });
 
 export const orderKeySchema = z.object({
@@ -149,6 +151,9 @@ export interface OnlineOrderRow {
   customer_name: string;
   customer_phone: string;
   items: OnlineLine[];
+  subtotal: number;
+  discount: number;
+  promo_code: string | null;
   total: number;
   status: OnlineStatus;
   proposed_items: OnlineLine[] | null;
@@ -168,6 +173,9 @@ export interface CustomerOrderView {
   orderNo: number;
   status: OnlineStatus;
   items: OnlineLine[];
+  subtotal: number;
+  discount: number;
+  promoCode: string | null;
   total: number;
   proposedItems: OnlineLine[] | null;
   proposedTotal: number | null;
@@ -188,6 +196,9 @@ export const toCustomerView = (row: Record<string, unknown>): CustomerOrderView 
   orderNo: row["order_no"] as number,
   status: row["status"] as OnlineStatus,
   items: (row["items"] ?? []) as OnlineLine[],
+  subtotal: Number(row["subtotal"] ?? 0),
+  discount: Number(row["discount"] ?? 0),
+  promoCode: (row["promo_code"] ?? null) as string | null,
   total: Number(row["total"] ?? 0),
   proposedItems: (row["proposed_items"] ?? null) as OnlineLine[] | null,
   proposedTotal: row["proposed_total"] == null ? null : Number(row["proposed_total"]),

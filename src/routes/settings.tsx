@@ -27,6 +27,7 @@ import {
   saveTableFn,
   deleteTableFn,
 } from "@/lib/orders.functions";
+import { listPromosFn, savePromoFn, togglePromoFn, deletePromoFn } from "@/lib/promo.functions";
 import { useMenuPublisher } from "@/lib/use-online-orders";
 import { EGP, STOCK_UNITS, TILE_COLORS, type Item, type TileColor } from "@/lib/pos-types";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,9 @@ function SettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="general" className="h-10 px-5 font-bold">
               القنوات والترابيزات 🍽️
+            </TabsTrigger>
+            <TabsTrigger value="promos" className="h-10 px-5 font-bold">
+              البروموهات 🎟️
             </TabsTrigger>
           </TabsList>
 
@@ -578,8 +582,186 @@ function SettingsPage() {
           <TabsContent value="general" className="pt-4">
             <ChannelsSettings />
           </TabsContent>
+
+          <TabsContent value="promos" className="pt-4">
+            <PromosSettings />
+          </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+
+type PromoItem = {
+  id: string; code: string; discount_pct: number; starts_at: string; ends_at: string;
+  active: number; max_uses: number | null; used_count: number;
+};
+
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+function promoStatus(p: PromoItem): { label: string; cls: string } {
+  const now = Date.now();
+  if (!p.active) return { label: "متوقف", cls: "bg-muted text-muted-foreground" };
+  if (Date.parse(p.starts_at) > now) return { label: "مجدول", cls: "bg-amber-500/20 text-amber-400" };
+  if (Date.parse(p.ends_at) <= now) return { label: "خلص", cls: "bg-destructive/20 text-destructive" };
+  if (p.max_uses != null && p.used_count >= p.max_uses)
+    return { label: "خلص (حد الاستخدام)", cls: "bg-destructive/20 text-destructive" };
+  return { label: "شغال", cls: "bg-primary/20 text-primary" };
+}
+
+function PromosSettings() {
+  const list = useServerFn(listPromosFn);
+  const save = useServerFn(savePromoFn);
+  const toggle = useServerFn(togglePromoFn);
+  const remove = useServerFn(deletePromoFn);
+
+  const [rows, setRows] = useState<PromoItem[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState("");
+  const [pct, setPct] = useState("10");
+  const [starts, setStarts] = useState(toLocalInput(new Date().toISOString()));
+  const [ends, setEnds] = useState(toLocalInput(new Date(Date.now() + 3600_000).toISOString()));
+  const [maxUses, setMaxUses] = useState("");
+
+  const refresh = useCallback(async () => {
+    try {
+      setRows((await list({})) as PromoItem[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر تحميل البروموهات");
+    }
+  }, [list]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await save({
+        data: {
+          code: code.trim(),
+          discountPct: Number(pct) || 0,
+          startsAt: new Date(starts).toISOString(),
+          endsAt: new Date(ends).toISOString(),
+          maxUses: maxUses.trim() ? Number(maxUses) : null,
+          active: true,
+        },
+      });
+      toast.success("تم حفظ البرومو");
+      setCode("");
+      setPct("10");
+      setMaxUses("");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-1 text-base font-extrabold">إضافة برومو جديد</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          الخصم بيتطبق على إجمالي الفاتورة. العميل بيكتب الكود في المنيو، والتحقق والحساب على السيرفر.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>الكود</Label>
+            <Input value={code} maxLength={24} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="BULK10" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>نسبة الخصم %</Label>
+            <Input type="number" min={1} max={100} value={pct} onChange={(e) => setPct(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>حد الاستخدام (اختياري)</Label>
+            <Input type="number" min={1} value={maxUses} onChange={(e) => setMaxUses(e.target.value)} placeholder="بلا حد" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>يبدأ</Label>
+            <Input type="datetime-local" value={starts} onChange={(e) => setStarts(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>ينتهي</Label>
+            <Input type="datetime-local" value={ends} onChange={(e) => setEnds(e.target.value)} />
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { l: "ساعة", ms: 3600_000 },
+            { l: "يوم", ms: 86400_000 },
+            { l: "أسبوع", ms: 7 * 86400_000 },
+          ].map((o) => (
+            <Button
+              key={o.l}
+              variant="secondary"
+              size="sm"
+              className="text-xs font-bold"
+              onClick={() => setEnds(toLocalInput(new Date(Date.now() + o.ms).toISOString()))}
+            >
+              المدة: {o.l}
+            </Button>
+          ))}
+          <Button className="ms-auto font-extrabold" disabled={busy || !code.trim()} onClick={() => void submit()}>
+            {busy ? "جاري الحفظ…" : "حفظ البرومو"}
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 text-base font-extrabold">البروموهات</h2>
+        {rows.length === 0 && <p className="text-xs text-muted-foreground">مفيش بروموهات بعد.</p>}
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const st = promoStatus(r);
+            return (
+              <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2">
+                <span className="font-black text-primary">{r.code}</span>
+                <span className="text-xs font-bold">{r.discount_pct}%</span>
+                <span className={"rounded-md px-2 py-0.5 text-[10px] font-black " + st.cls}>{st.label}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {new Date(r.starts_at).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" })}
+                  {" → "}
+                  {new Date(r.ends_at).toLocaleString("ar-EG", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  استُخدم {r.used_count}{r.max_uses != null ? ` / ${r.max_uses}` : ""}
+                </span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="ms-auto text-[11px] font-bold"
+                  onClick={async () => {
+                    await toggle({ data: { id: r.id, active: r.active !== 1 } });
+                    await refresh();
+                  }}
+                >
+                  {r.active ? "إيقاف" : "تشغيل"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="text-[11px] font-bold"
+                  onClick={async () => {
+                    await remove({ data: { id: r.id } });
+                    await refresh();
+                  }}
+                >
+                  حذف
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

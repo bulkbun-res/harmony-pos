@@ -28,6 +28,7 @@ import {
   placeOrder,
   respondToProposal,
 } from "@/lib/online.functions";
+import { getActivePromosFn, checkPromoFn } from "@/lib/promo.functions";
 import {
   ONLINE_PAYMENT_LABEL,
   ONLINE_STATUS_LABEL,
@@ -76,6 +77,8 @@ function MenuScreen() {
   const submitOrder = useServerFn(placeOrder);
   const loadStatus = useServerFn(getOrderStatus);
   const respond = useServerFn(respondToProposal);
+  const loadPromos = useServerFn(getActivePromosFn);
+  const checkPromo = useServerFn(checkPromoFn);
 
   const [menu, setMenu] = useState<PublicMenu>({ groups: [], items: [] });
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,16 @@ function MenuScreen() {
   const [ticket, setTicket] = useState<{ id: string; token: string } | null>(null);
   const [order, setOrder] = useState<CustomerOrderView | null>(null);
   const [selectedBreads, setSelectedBreads] = useState<Record<string, string>>({});
+
+  // ── البرومو ──
+  const [promos, setPromos] = useState<
+    { id: string; discountPct: number; startsAt: string; endsAt: string }[]
+  >([]);
+  const [serverOffset, setServerOffset] = useState(0);
+  const [, setTick] = useState(0);
+  const [promoInput, setPromoInput] = useState("");
+  const [applied, setApplied] = useState<{ code: string; pct: number } | null>(null);
+  const [promoMsg, setPromoMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -187,8 +200,70 @@ function MenuScreen() {
         .filter((l) => l.qty > 0),
     );
 
-  const total = sumLines(cart);
+  // جيب البروموهات النشطة + فرق ساعة السيرفر
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await loadPromos({});
+        if (!alive) return;
+        setPromos(r.promos);
+        setServerOffset(Date.parse(r.serverNow) - Date.now());
+      } catch {
+        /* تجاهل */
+      }
+    };
+    void load();
+    const t = setInterval(() => void load(), 60000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [loadPromos]);
+
+  // نبضة كل ثانية للعدّاد
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const remainOf = (iso: string) => Date.parse(iso) - (Date.now() + serverOffset);
+  const fmtRemain = (ms: number) => {
+    const s2 = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s2 / 3600);
+    const m = Math.floor((s2 % 3600) / 60);
+    const ss = s2 % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`
+      : `${m}:${String(ss).padStart(2, "0")}`;
+  };
+  const bestPromo = promos.find((p) => remainOf(p.endsAt) > 0);
+
+  const subtotal = sumLines(cart);
+  const discountValue = applied
+    ? Math.round(subtotal * (applied.pct / 100) * 100) / 100
+    : 0;
+  const total = Math.max(0, Math.round((subtotal - discountValue) * 100) / 100);
   const count = cart.reduce((s, l) => s + l.qty, 0);
+
+  const applyPromo = async () => {
+    setPromoMsg(null);
+    const code = promoInput.trim();
+    if (!code) return;
+    try {
+      const r = await checkPromo({ data: { code } });
+      if (!r.ok) {
+        setApplied(null);
+        setPromoMsg(r.message);
+        return;
+      }
+      setApplied({ code: r.code, pct: r.discountPct });
+      setPromoMsg(null);
+      toast.success(`تم تطبيق خصم ${r.discountPct}%`);
+    } catch (e) {
+      setPromoMsg(e instanceof Error ? e.message : "تعذر التحقق من الكود");
+    }
+  };
 
   const checkout = async () => {
     const parsed = placeOrderSchema.safeParse({
@@ -196,6 +271,7 @@ function MenuScreen() {
       phone,
       lines: cart,
       ...(tableNo.trim() ? { tableNo: tableNo.trim() } : {}),
+      ...(applied ? { promoCode: applied.code } : {}),
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "برجاء مراجعة البيانات");
@@ -209,6 +285,9 @@ function MenuScreen() {
       setTicket(t);
       setCart([]);
       setCartOpen(false);
+      setApplied(null);
+      setPromoInput("");
+      setPromoMsg(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر إرسال الطلب");
     } finally {
@@ -261,6 +340,18 @@ function MenuScreen() {
           </span>
         )}
       </header>
+
+      {promos.length > 0 && (
+        <div className="border-b border-primary/25 bg-primary/10 px-4 py-2 text-center">
+          {bestPromo ? (
+            <p className="text-xs font-black text-primary">
+              🎉 خصم {bestPromo.discountPct}% على طلبك — باقي {fmtRemain(remainOf(bestPromo.endsAt))}
+            </p>
+          ) : (
+            <p className="text-xs font-bold text-muted-foreground">العرض ده خلص</p>
+          )}
+        </div>
+      )}
 
       <div className="sticky top-[68px] z-10 flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur scrollbar-none">
         {[{ id: "all", name: "الكل" }, ...groups].map((g) => (
@@ -480,7 +571,61 @@ function MenuScreen() {
               />
             </div>
 
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-primary/15 px-4 py-3">
+            <div className="mt-4 space-y-2">
+              {applied ? (
+                <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2">
+                  <span className="text-sm font-black text-primary">
+                    كود {applied.code} — خصم {applied.pct}%
+                  </span>
+                  <button
+                    onClick={() => {
+                      setApplied(null);
+                      setPromoInput("");
+                      setPromoMsg(null);
+                    }}
+                    className="text-[11px] font-bold text-destructive"
+                  >
+                    إزالة
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    value={promoInput}
+                    maxLength={24}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    placeholder="كود الخصم (اختياري)"
+                    className="h-11 bg-background"
+                  />
+                  <Button
+                    variant="secondary"
+                    className="h-11 px-4 text-xs font-black"
+                    disabled={!promoInput.trim()}
+                    onClick={() => void applyPromo()}
+                  >
+                    تطبيق
+                  </Button>
+                </div>
+              )}
+              {promoMsg && <p className="text-[11px] font-bold text-destructive">{promoMsg}</p>}
+            </div>
+
+            <div className="mt-4 space-y-1">
+              {discountValue > 0 && (
+                <>
+                  <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+                    <span>قبل الخصم</span>
+                    <span className="line-through">{EGP(subtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-1 text-xs font-bold text-primary">
+                    <span>خصم {applied?.pct}%</span>
+                    <span>- {EGP(discountValue)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-primary/15 px-4 py-3">
               <span className="font-extrabold">الإجمالي</span>
               <span className="text-xl font-black text-primary">{EGP(total)}</span>
             </div>
