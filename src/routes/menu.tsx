@@ -29,6 +29,8 @@ import {
   respondToProposal,
 } from "@/lib/online.functions";
 import { getActivePromosFn, checkPromoFn } from "@/lib/promo.functions";
+import { attachReceiptFn } from "@/lib/online.functions";
+import { uploadToImgBB, shrinkImage } from "@/lib/imgbb";
 import {
   ONLINE_PAYMENT_LABEL,
   ONLINE_STATUS_LABEL,
@@ -79,6 +81,7 @@ function MenuScreen() {
   const respond = useServerFn(respondToProposal);
   const loadPromos = useServerFn(getActivePromosFn);
   const checkPromo = useServerFn(checkPromoFn);
+  const reattach = useServerFn(attachReceiptFn);
 
   const [menu, setMenu] = useState<PublicMenu>({ groups: [], items: [] });
   const [loading, setLoading] = useState(true);
@@ -102,6 +105,11 @@ function MenuScreen() {
   const [promoInput, setPromoInput] = useState("");
   const [applied, setApplied] = useState<{ code: string; pct: number } | null>(null);
   const [promoMsg, setPromoMsg] = useState<string | null>(null);
+
+  // ── الدفع ──
+  const [payMethod, setPayMethod] = useState<"cash" | "instapay" | "vodafone">("cash");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -246,6 +254,39 @@ function MenuScreen() {
   const total = Math.max(0, Math.round((subtotal - discountValue) * 100) / 100);
   const count = cart.reduce((s, l) => s + l.qty, 0);
 
+  const TRANSFER_NUMBER = "01022670540";
+
+  const reattachReceipt = async (file: File | undefined) => {
+    if (!file || !ticket) return;
+    setUploading(true);
+    try {
+      const url = await uploadToImgBB(await shrinkImage(file));
+      await reattach({ data: { id: ticket.id, token: ticket.token, receiptUrl: url } });
+      const fresh = await loadStatus({ data: { id: ticket.id, token: ticket.token } });
+      setOrder(fresh);
+      toast.success("تم إرسال الإيصال للمراجعة");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر إرسال الإيصال");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const pickReceipt = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const small = await shrinkImage(file);
+      const url = await uploadToImgBB(small);
+      setReceiptUrl(url);
+      toast.success("تم رفع صورة التحويل");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const applyPromo = async () => {
     setPromoMsg(null);
     const code = promoInput.trim();
@@ -272,6 +313,8 @@ function MenuScreen() {
       lines: cart,
       ...(tableNo.trim() ? { tableNo: tableNo.trim() } : {}),
       ...(applied ? { promoCode: applied.code } : {}),
+      paymentMethod: payMethod,
+      ...(payMethod !== "cash" && receiptUrl ? { receiptUrl } : {}),
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "برجاء مراجعة البيانات");
@@ -288,6 +331,8 @@ function MenuScreen() {
       setApplied(null);
       setPromoInput("");
       setPromoMsg(null);
+      setReceiptUrl(null);
+      setPayMethod("cash");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر إرسال الطلب");
     } finally {
@@ -309,6 +354,8 @@ function MenuScreen() {
             toast.error(e instanceof Error ? e.message : "حدث خطأ");
           }
         }}
+        onReattach={(f) => void reattachReceipt(f)}
+        uploading={uploading}
         onNew={() => {
           localStorage.removeItem(STORAGE_KEY);
           setTicket(null);
@@ -572,6 +619,71 @@ function MenuScreen() {
             </div>
 
             <div className="mt-4 space-y-2">
+              <p className="text-xs font-bold text-muted-foreground">طريقة الدفع</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { id: "cash", label: "عند الاستلام" },
+                  { id: "instapay", label: "إنستا باي" },
+                  { id: "vodafone", label: "فودافون كاش" },
+                ] as const).map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setPayMethod(m.id)}
+                    className={
+                      "h-11 rounded-xl border text-xs font-black transition-all " +
+                      (payMethod === m.id
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border bg-background text-muted-foreground")
+                    }
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {payMethod !== "cash" && (
+                <div className="space-y-2 rounded-xl border border-border bg-background p-3">
+                  <p className="text-[11px] font-bold text-muted-foreground">
+                    حوّل المبلغ على الرقم ده ثم ارفق صورة التحويل
+                  </p>
+                  <div className="flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2">
+                    <span className="font-black tracking-wider text-primary" dir="ltr">
+                      {TRANSFER_NUMBER}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 text-[11px] font-bold"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(TRANSFER_NUMBER);
+                        toast.success("تم نسخ الرقم");
+                      }}
+                    >
+                      نسخ
+                    </Button>
+                  </div>
+
+                  <label className="flex h-11 cursor-pointer items-center justify-center rounded-xl bg-secondary text-xs font-black text-foreground">
+                    {uploading ? "جاري الرفع…" : receiptUrl ? "تغيير صورة التحويل" : "ارفق صورة التحويل 📎"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => void pickReceipt(e.target.files?.[0])}
+                    />
+                  </label>
+
+                  {receiptUrl && (
+                    <div className="flex items-center gap-2">
+                      <img src={receiptUrl} alt="إيصال التحويل" className="h-20 w-20 rounded-lg object-cover" />
+                      <span className="text-[11px] font-bold text-primary">تم رفع الإيصال ✅</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 space-y-2">
               {applied ? (
                 <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2">
                   <span className="text-sm font-black text-primary">
@@ -632,7 +744,7 @@ function MenuScreen() {
 
             <Button
               className="mt-3 h-14 w-full text-base font-extrabold"
-              disabled={sending || !cart.length}
+              disabled={sending || uploading || !cart.length || (payMethod !== "cash" && !receiptUrl)}
               onClick={() => void checkout()}
             >
               {sending ? "جاري الإرسال…" : "إرسال الطلب للكاشير"}
@@ -648,9 +760,13 @@ function OrderTracker({
   order,
   onRespond,
   onNew,
+  onReattach,
+  uploading,
 }: {
   order: CustomerOrderView;
   onRespond: (accept: boolean) => Promise<void>;
+  onReattach: (file: File | undefined) => void;
+  uploading: boolean;
   onNew: () => void;
 }) {
   const waiting = order.status === "awaiting_customer";
@@ -717,6 +833,29 @@ function OrderTracker({
                 رفض وإلغاء
               </Button>
             </div>
+          </div>
+        )}
+
+        {order.paymentStatus === "pending_review" && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-center">
+            <p className="text-xs font-black text-amber-400">⏳ بانتظار تأكيد التحويل من الكاشير</p>
+          </div>
+        )}
+
+        {order.paymentStatus === "rejected" && (
+          <div className="space-y-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-3 text-center">
+            <p className="text-xs font-black text-destructive">
+              الإيصال مرفوض{order.rejectNote ? `: ${order.rejectNote}` : ""}
+            </p>
+            <label className="flex h-11 cursor-pointer items-center justify-center rounded-xl bg-secondary text-xs font-black">
+              {uploading ? "جاري الرفع…" : "ارفع صورة تانية 📎"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onReattach(e.target.files?.[0])}
+              />
+            </label>
           </div>
         )}
 

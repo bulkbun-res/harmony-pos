@@ -16,6 +16,7 @@ import {
 import { generateUUID, nextOrderNo, getD1 } from "@/integrations/d1/client.server";
 import { findValidPromo, explainPromoFailure } from "./promo.server";
 import { round2 } from "./orders-types";
+import { getCurrentUser } from "./auth.server";
 
 // ─── helper: parse JSON safely ────────────────────────────────────────────────
 function parseJson<T>(val: unknown): T {
@@ -43,6 +44,11 @@ function rowToOrderRow(row: Record<string, unknown>): OnlineOrderRow {
     payment_method: (row["payment_method"] ?? null) as OnlineOrderRow["payment_method"],
     paid_amount: row["paid_amount"] == null ? null : Number(row["paid_amount"]),
     paid_at: (row["paid_at"] ?? null) as string | null,
+    payment_status: ((row["payment_status"] ?? "unpaid") as OnlineOrderRow["payment_status"]),
+    receipt_url: (row["receipt_url"] ?? null) as string | null,
+    verified_at: (row["verified_at"] ?? null) as string | null,
+    verified_by: (row["verified_by"] ?? null) as string | null,
+    reject_note: (row["reject_note"] ?? null) as string | null,
     table_no: (row["table_no"] ?? null) as string | null,
     created_at: row["created_at"] as string,
     updated_at: row["updated_at"] as string,
@@ -129,6 +135,12 @@ export const placeOrder = createServerFn({ method: "POST" })
       unitPrice: r.item!.price,
     }));
 
+    const isTransfer = data.paymentMethod === "instapay" || data.paymentMethod === "vodafone";
+    if (isTransfer && !data.receiptUrl) {
+      throw new Error("ارفق صورة التحويل الأول");
+    }
+    const paymentStatus = isTransfer ? "pending_review" : "cod";
+
     const subtotal = round2(sumLines(lines));
 
     // ── كود الخصم: التحقق والحساب على السيرفر (المتصفح ما يقدرش يزوّره)
@@ -151,12 +163,14 @@ export const placeOrder = createServerFn({ method: "POST" })
     await db
       .prepare(
         `INSERT INTO online_orders
-           (id, token, order_no, customer_name, customer_phone, items, subtotal, discount, promo_code, total, table_no, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
+           (id, token, order_no, customer_name, customer_phone, items, subtotal, discount, promo_code, total,
+            table_no, payment_method, payment_status, receipt_url, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', datetime('now'), datetime('now'))`,
       )
       .bind(
         id, token, order_no, data.name, data.phone, JSON.stringify(lines),
         subtotal, discount, promoCode, total, data.tableNo ?? null,
+        data.paymentMethod, paymentStatus, isTransfer ? data.receiptUrl! : null,
       )
       .run();
 
@@ -345,4 +359,87 @@ export const posMarkPaid = createServerFn({ method: "POST" })
       .first<Record<string, unknown>>();
     if (!updated) throw new Error("الطلب غير موجود");
     return rowToOrderRow(updated);
+  });
+
+// ─── التحقق من الدفع (كاشير / أدمن) ──────────────────────────────────────────
+export const verifyPaymentFn = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const user = await getCurrentUser();
+    if (!user) throw new Error("يجب تسجيل الدخول");
+    const db = await getD1();
+    const row = await db
+      .prepare("SELECT payment_status, total FROM online_orders WHERE id = ?")
+      .bind(data.id)
+      .first<{ payment_status: string; total: number }>();
+    if (!row) throw new Error("الطلب غير موجود");
+    if (row.payment_status === "verified") return { ok: true, already: true };
+
+    await db
+      .prepare(
+        `UPDATE online_orders
+            SET payment_status = 'verified',
+                verified_at = datetime('now'),
+                verified_by = ?,
+                reject_note = NULL,
+                paid_amount = total,
+                paid_at = COALESCE(paid_at, datetime('now')),
+                updated_at = datetime('now')
+          WHERE id = ?`,
+      )
+      .bind(user.name, data.id)
+      .run();
+    return { ok: true };
+  });
+
+export const rejectReceiptFn = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string(), note: z.string().trim().max(200).optional() }))
+  .handler(async ({ data }) => {
+    const user = await getCurrentUser();
+    if (!user) throw new Error("يجب تسجيل الدخول");
+    const db = await getD1();
+    await db
+      .prepare(
+        `UPDATE online_orders
+            SET payment_status = 'rejected',
+                reject_note = ?,
+                verified_at = NULL,
+                verified_by = NULL,
+                paid_amount = NULL,
+                paid_at = NULL,
+                updated_at = datetime('now')
+          WHERE id = ?`,
+      )
+      .bind(data.note ?? "الإيصال مش واضح", data.id)
+      .run();
+    return { ok: true };
+  });
+
+/** العميل يرفع إيصال تاني بعد الرفض (بالـ token بتاعه) */
+export const attachReceiptFn = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string(),
+      token: z.string(),
+      receiptUrl: z.string().trim().url().max(500),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const db = await getD1();
+    const row = await db
+      .prepare("SELECT id FROM online_orders WHERE id = ? AND token = ?")
+      .bind(data.id, data.token)
+      .first();
+    if (!row) throw new Error("الطلب غير موجود");
+
+    await db
+      .prepare(
+        `UPDATE online_orders
+            SET receipt_url = ?, payment_status = 'pending_review',
+                reject_note = NULL, updated_at = datetime('now')
+          WHERE id = ?`,
+      )
+      .bind(data.receiptUrl, data.id)
+      .run();
+    return { ok: true };
   });

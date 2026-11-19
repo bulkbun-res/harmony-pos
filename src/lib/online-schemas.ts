@@ -108,6 +108,10 @@ export const placeOrderSchema = z.object({
     .optional(),
   /** كود خصم — اختياري، والتحقق منه على السيرفر */
   promoCode: z.string().trim().max(24).optional(),
+  /** طريقة الدفع — الدفع عند الاستلام أو تحويل */
+  paymentMethod: z.enum(["cash", "instapay", "vodafone"]).default("cash"),
+  /** رابط صورة التحويل — إجباري مع التحويل */
+  receiptUrl: z.string().trim().url("رابط صورة التحويل غير صالح").max(500).optional(),
 });
 
 export const orderKeySchema = z.object({
@@ -163,6 +167,11 @@ export interface OnlineOrderRow {
   payment_method: OnlinePaymentMethod | null;
   paid_amount: number | null;
   paid_at: string | null;
+  payment_status: OnlinePaymentStatus;
+  receipt_url: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  reject_note: string | null;
   table_no: string | null;
   created_at: string;
   updated_at: string;
@@ -184,6 +193,8 @@ export interface CustomerOrderView {
   paymentMethod: OnlinePaymentMethod | null;
   paidAmount: number | null;
   paidAt: string | null;
+  paymentStatus: OnlinePaymentStatus;
+  rejectNote: string | null;
   tableNo: string | null;
   createdAt: string;
 }
@@ -207,6 +218,8 @@ export const toCustomerView = (row: Record<string, unknown>): CustomerOrderView 
   paymentMethod: (row["payment_method"] ?? null) as OnlinePaymentMethod | null,
   paidAmount: row["paid_amount"] == null ? null : Number(row["paid_amount"]),
   paidAt: (row["paid_at"] ?? null) as string | null,
+  paymentStatus: ((row["payment_status"] ?? "unpaid") as OnlinePaymentStatus),
+  rejectNote: (row["reject_note"] ?? null) as string | null,
   tableNo: (row["table_no"] ?? null) as string | null,
   createdAt: row["created_at"] as string,
 });

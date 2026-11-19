@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { verifyPaymentFn, rejectReceiptFn } from "@/lib/online.functions";
 import {
   Ban,
   ChefHat,
@@ -37,6 +38,7 @@ import { PUBLIC_MENU_URL } from "@/lib/public-url";
 import {
   ONLINE_PAYMENT_LABEL,
   ONLINE_STATUS_LABEL,
+  ONLINE_PAYMENT_STATUS_LABEL,
   sumLines,
   type OnlinePaymentMethod,
   type OnlineLine,
@@ -85,6 +87,8 @@ function OnlineScreen() {
   const list = useServerFn(posListOrders);
   const setStatus = useServerFn(posSetStatus);
   const markPaid = useServerFn(posMarkPaid);
+  const verifyServer = useServerFn(verifyPaymentFn);
+  const rejectServer = useServerFn(rejectReceiptFn);
   const propose = useServerFn(posProposeEdit);
   const { publish, publishing, lastPublished } = useMenuPublisher();
 
@@ -175,6 +179,31 @@ function OnlineScreen() {
       phone: o.customer_phone,
     });
     void refresh();
+  };
+
+  /** التحقق من تحويل: يدفع الفاتورة الأول (عشان تتحصّل) وبعدين يعلّم الحالة */
+  const verifyTransfer = async (o: OnlineOrderRow) => {
+    const method: PaymentMethod = o.payment_method === "instapay" ? "instapay" : "vodafone";
+    try {
+      await confirmPayment(o, method);
+      await verifyServer({ data: { id: o.id } });
+      toast.success(`تم التحقق — ${EGP(o.total)} اتسجلت في التحصيلات`);
+      void refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر التحقق");
+    }
+  };
+
+  const rejectReceipt = async (o: OnlineOrderRow) => {
+    const note = window.prompt("سبب رفض الإيصال؟", "الصورة مش واضحة");
+    if (note === null) return;
+    try {
+      await rejectServer({ data: { id: o.id, note: note.trim() || "الإيصال مش واضح" } });
+      toast.success("تم رفض الإيصال — العميل يقدر يرفع تاني");
+      void refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذر الرفض");
+    }
   };
 
   /** طباعة فاتورة الطلب الأونلاين (نسخة للعرض فقط) */
@@ -301,6 +330,44 @@ function OnlineScreen() {
                   </span>
                 </div>
 
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      "rounded-lg px-2 py-1 text-[11px] font-black",
+                      o.payment_status === "verified"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : o.payment_status === "pending_review"
+                          ? "bg-amber-500/20 text-amber-400"
+                          : o.payment_status === "rejected"
+                            ? "bg-destructive/20 text-destructive"
+                            : "bg-secondary text-muted-foreground",
+                    )}
+                  >
+                    {ONLINE_PAYMENT_STATUS_LABEL[o.payment_status]}
+                  </span>
+                  {o.payment_method && o.payment_method !== "cash" && (
+                    <span className="text-[11px] font-bold text-muted-foreground">
+                      {ONLINE_PAYMENT_LABEL[o.payment_method]}
+                    </span>
+                  )}
+                  {o.receipt_url && (
+                    <a
+                      href={o.receipt_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-black text-primary underline"
+                    >
+                      عرض إيصال التحويل
+                    </a>
+                  )}
+                </div>
+
+                {o.payment_status === "rejected" && o.reject_note && (
+                  <p className="mt-1 text-[11px] font-bold text-destructive">
+                    سبب الرفض: {o.reject_note}
+                  </p>
+                )}
+
                 <div className="mt-3 space-y-1 text-sm">
                   {lines.map((l, i) => (
                     <div key={`${l.itemId}-${i}`} className="flex justify-between gap-2">
@@ -360,6 +427,23 @@ function OnlineScreen() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {o.payment_status === "pending_review" && (
+                    <>
+                      <Button
+                        className="h-11 bg-emerald-600 font-extrabold text-white hover:bg-emerald-700"
+                        onClick={() => void verifyTransfer(o)}
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> تم التحقق
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="h-11"
+                        onClick={() => void rejectReceipt(o)}
+                      >
+                        رفض الإيصال
+                      </Button>
+                    </>
+                  )}
                   {(o.status === "new" || o.status === "approved") && (
                     <Button className="h-11 font-extrabold" onClick={() => void prepare(o)}>
                       <ChefHat className="h-4 w-4" /> تجهيز
